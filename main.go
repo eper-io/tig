@@ -24,10 +24,10 @@ var root = "/tmp"
 // tig is a low ROI git competitor
 
 // Usage
-//curl -v 127.0.0.1:7777/
-//curl -X PUT -v 127.0.0.1:7777/ -T npm-debug.log
-//curl -v 127.0.0.1:7777/
-//curl -v 127.0.0.1:7777/efcbccaab893ec3a2c4d478aa7c9367e61ea6fd8c94af3f0d309cd3f7ea72bb8.tig
+//curl -v 127.0.0.1:8080/
+//curl -X PUT -v 127.0.0.1:8080/ -T npm-debug.log
+//curl -v 127.0.0.1:8080/
+//curl -v 127.0.0.1:8080/efcbccaab893ec3a2c4d478aa7c9367e61ea6fd8c94af3f0d309cd3f7ea72bb8.tig
 
 var m sync.Mutex
 
@@ -56,7 +56,7 @@ func main() {
 			}
 		}
 	})
-	Steel(http.ListenAndServe(":7777", nil))
+	Steel(http.ListenAndServe(":8080", nil))
 }
 
 func QuantumGradeAuthentication(w http.ResponseWriter, r *http.Request) bool {
