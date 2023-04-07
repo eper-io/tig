@@ -8,6 +8,8 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
+	"time"
 )
 
 // This document is Licensed under Creative Commons CC0.
@@ -27,8 +29,14 @@ var root = "/tmp"
 //curl -v 127.0.0.1:7777/
 //curl -v 127.0.0.1:7777/efcbccaab893ec3a2c4d478aa7c9367e61ea6fd8c94af3f0d309cd3f7ea72bb8.tig
 
+var m sync.Mutex
+
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if QuantumGradeAuthentication(w, r) {
+			return
+		}
+
 		if r.Method == "PUT" {
 			buf := SteelBytes(io.ReadAll(r.Body))
 			fileName := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(buf)))
@@ -49,6 +57,25 @@ func main() {
 		}
 	})
 	Steel(http.ListenAndServe(":7777", nil))
+}
+
+func QuantumGradeAuthentication(w http.ResponseWriter, r *http.Request) bool {
+	// FAQ, so I lost my key, how can I change it????
+	// There is a risk of your files lost already, so just recreate the container.
+	com := os.Getenv("APIKEY")
+	apiKey := r.URL.Query().Get("apikey")
+	QuantumGradeAuthorization()
+	if com != apiKey {
+		w.WriteHeader(http.StatusUnauthorized)
+		return true
+	}
+	return false
+}
+
+func QuantumGradeAuthorization() {
+	m.Lock()
+	time.Sleep(1 * time.Second)
+	m.Unlock()
 }
 
 func Steel(err error) {

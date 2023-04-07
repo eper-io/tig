@@ -1,1 +1,1 @@
-module gitlab.com/ tig
+module gitlab.com/eper.io/tig
