@@ -25,9 +25,14 @@ import (
 // Storage directory. Suggestions:
 // /tmp It cleans up fast, it is quick memory based storage sometimes.
 // /usr/lib It is a good choice for executable modules. It is persistent.
+// /var/log Choose this for persistent data. It is persistent.
 // /opt/ Use this for entire solutions. It is persistent.
 // ~/ Use, if you run outside a container without privileges, but you need persistence across reboot.
+// It is a good idea to delayed delete files setting `cleanup`.
+// Clients can recreate them making the system more resilient and compliant with privacy regulations.
+
 var root = "/tmp"
+var cleanup = 10 * time.Minute
 
 // Usage
 //curl 127.0.0.1:7777/
