@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -52,6 +53,19 @@ var cleanup = 10 * time.Minute
 var m sync.Mutex
 
 func main() {
+	Setup()
+	_, err := os.Stat("/etc/ssl/tig.key")
+	if err == nil {
+		err = http.ListenAndServeTLS(":443", "/etc/ssl/tig.crt", "/etc/ssl/tig.key", nil)
+	} else {
+		Steel(http.ListenAndServe(":7777", nil))
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func Setup() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if QuantumGradeAuthenticationFailed(w, r) {
 			return
@@ -97,7 +111,6 @@ func main() {
 			}
 		}
 	})
-	Steel(http.ListenAndServe(":7777", nil))
 }
 
 func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bool {
@@ -143,3 +156,4 @@ func SteelWrite(i int, err error) {
 		fmt.Println(err)
 	}
 }
+
