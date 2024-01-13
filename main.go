@@ -36,7 +36,7 @@ import (
 // Such systems comply easier with privacy regulations being just a cache not a root storage.
 
 var root = "/tmp"
-var cleanup = 10 * time.Minute
+var cleanup = 10*time.Minute
 
 // Usage
 //
