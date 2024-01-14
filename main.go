@@ -24,7 +24,7 @@ import (
 // The main design decision is to let the client deal with ordering and tagging.
 // This makes the server side and the protocol simple.
 // Each repository can contain files from multiple projects.
-// Any repeated patterns can be compressed at the file system level
+// Any repeated patterns can be compressed at the file system level.
 
 // Storage directory. Suggestions:
 // /tmp It cleans up fast, it is sometimes low latency memory based storage.
