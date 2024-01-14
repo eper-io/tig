@@ -1,8 +1,6 @@
 package main
 
 import (
-	"gitlab.com/eper.io/tig/tig"
-	"net/http"
 )
 
 // This document is Licensed under Creative Commons CC0.

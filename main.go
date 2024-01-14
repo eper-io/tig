@@ -50,6 +50,19 @@ var cleanup = 10*time.Minute
 //cat /etc/fstab | sha256sum | head -c 64
 //printf "http://127.0.0.1:7777/`cat /etc/fstab | sha256sum | head -c 64`.tig"
 
+// Usage with generating certificates
+//
+// dnf update
+// dnf install epel-release
+// dnf install nginx certbot python3-certbot-apache mod_ssl python3-certbot-dns-digitalocean python3-certbot-dns-digitalocean python3-certbot-nginx
+// firewall-cmd --permanent --add-port=80/tcp --zone=public
+// firewall-cmd --permanent --add-port=443/tcp --zone=public
+// firewall-cmd --reload
+// certbot certonly --standalone -d example.com
+// cp /etc/letsencrypt/live/example.com/privkey.pem /etc/ssl/tig.key
+// cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
+
+
 var m sync.Mutex
 
 func main() {
