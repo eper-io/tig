@@ -79,6 +79,7 @@ func main() {
 }
 
 func Setup() {
+	// TODO Schedule cleanup or rely on fixing the restart cause?
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if QuantumGradeAuthenticationFailed(w, r) {
 			return
