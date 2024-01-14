@@ -20,7 +20,8 @@ There are some ways developers can extend it to be powerful.
 - The client can address the file any time with its SHA256 hash.
 - The client can split the stream into to XOR streams uploaded to two different cloud providers making risks and pricing lower.
 - The client can do striping to two different cloud providers doubling bandwidth.
-- Cleanup time can be adjusted file hashes acting like page and segment addresses.
+- Cleanup time can be adjusted to act like a cache or final legal backup.
+- File hashes instead of names act like page and segment addresses of Intel and AMD process pages.
 - Such a setup can work with memory mapped volumes to make distributed processes with ease.
 
 ## Examples
