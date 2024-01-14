@@ -63,7 +63,6 @@ var cleanup = 10*time.Minute
 // cp /etc/letsencrypt/live/example.com/privkey.pem /etc/ssl/tig.key
 // cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 
-
 var m sync.Mutex
 
 func main() {
