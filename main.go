@@ -23,6 +23,7 @@ import (
 // tig is a low complexity git competitor.
 // The main design decision is to let the client deal with ordering and tagging.
 // This makes the server side and the protocol simple.
+// Each repository can contain files from multiple projects.
 // Any repeated patterns can be compressed at the file system level
 
 // Storage directory. Suggestions:
