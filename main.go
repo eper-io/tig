@@ -91,7 +91,7 @@ func Setup() {
 		if r.Method == "PUT" || r.Method == "POST" {
 			buf := SteelBytes(io.ReadAll(r.Body))
 			fileName := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(buf)))
-			Steel(os.WriteFile(fileName, buf, 0700))
+			Steel(os.WriteFile(fileName, buf, 0600))
 			go func(name string) {
 				time.Sleep(cleanup)
 				fmt.Printf("File with name %s is to be deleted.", name)
