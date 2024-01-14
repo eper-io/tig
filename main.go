@@ -136,19 +136,25 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 		}
 	}
 	apiKey := r.URL.Query().Get("apikey")
-	QuantumGradeAuthorization()
 	if com != apiKey {
+		QuantumGradeAuthorizationOnFail()
 		w.WriteHeader(http.StatusUnauthorized)
 		return true
 	}
+	QuantumGradeAuthorizationOnSuccess()
 	return false
 }
 
-func QuantumGradeAuthorization() {
-	// TODO What do you do, when fraudsters flood you with requests? Wait a sec ...
+func QuantumGradeAuthorizationOnFail() {
+	// What do you do, when fraudsters flood you with requests? Wait a sec ...
 	m.Lock()
 	time.Sleep(1 * time.Second)
 	m.Unlock()
+}
+
+func QuantumGradeAuthorizationOnSuccess() {
+	// What do you do, when legitimate users request access? Let them in in parallel. ...
+	time.Sleep(1 * time.Second)
 }
 
 func Steel(err error) {
