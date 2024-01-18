@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -108,6 +109,14 @@ func Setup() {
 		if r.Method == "GET" {
 			if r.URL.Path == "/" {
 				f, _ := os.ReadDir(root)
+				sort.SliceStable(f, func(i, j int) bool {
+					x, _ := f[i].Info()
+					y, _ := f[j].Info()
+					if x != nil && y != nil && x.ModTime().Before(y.ModTime()) {
+						return false
+					}
+					return true
+				})
 				for _, v := range f {
 					if strings.HasSuffix(v.Name(), ".tig") {
 						SteelWrite(w.Write([]byte(path.Join("/", v.Name()) + "\n")))
