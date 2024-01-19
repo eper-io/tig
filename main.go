@@ -38,7 +38,11 @@ import (
 // Such systems comply easier with privacy regulations being just a cache not a root storage.
 
 var root = "/tmp"
-var cleanup = 10*time.Minute
+var cleanup = 10 * time.Minute
+
+const MaxFileSize = 128 * 1024 * 1024
+
+var noAuthDelay sync.Mutex
 
 // Usage
 //
@@ -64,8 +68,6 @@ var cleanup = 10*time.Minute
 // cp /etc/letsencrypt/live/example.com/privkey.pem /etc/ssl/tig.key
 // cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 
-var m sync.Mutex
-
 func main() {
 	Setup()
 	_, err := os.Stat("/etc/ssl/tig.key")
@@ -80,23 +82,26 @@ func main() {
 }
 
 func Setup() {
-	// TODO Schedule cleanup or rely on fixing the restart cause?
+	// TODO Schedule cleanup or rely on fixing any restart root cause?
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if QuantumGradeAuthenticationFailed(w, r) {
 			return
 		}
+
 		if strings.Contains(r.URL.Path, "..") {
 			w.WriteHeader(http.StatusExpectationFailed)
 			return
 		}
 
 		if r.Method == "PUT" || r.Method == "POST" {
-			buf := SteelBytes(io.ReadAll(r.Body))
+			buf := SteelBytes(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 			fileName := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(buf)))
 			Steel(os.WriteFile(fileName, buf, 0600))
 			go func(name string) {
 				time.Sleep(cleanup)
-				fmt.Printf("File with name %s is to be deleted.", name)
+				Steel(os.Remove(name))
+				f, _ := os.Create("deleted." + name)
+				_ = f.Close()
 			}(fileName)
 		}
 		if r.Method == "HEAD" {
@@ -109,6 +114,7 @@ func Setup() {
 		if r.Method == "GET" {
 			if r.URL.Path == "/" {
 				f, _ := os.ReadDir(root)
+				// Newest file first
 				sort.SliceStable(f, func(i, j int) bool {
 					x, _ := f[i].Info()
 					y, _ := f[j].Info()
@@ -130,7 +136,8 @@ func Setup() {
 		if r.Method == "DELETE" {
 			if len(r.URL.Path) > 1 {
 				filePath := path.Join(root, r.URL.Path)
-				Steel(os.Remove(filePath))
+				// TODO Cleanup time is sufficient
+				fmt.Printf("delete? Steel(os.Remove(%s))\n", filePath)
 			}
 		}
 	})
@@ -157,13 +164,13 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 
 func QuantumGradeAuthorizationOnFail() {
 	// What do you do, when fraudsters flood you with requests? Wait a sec ...
-	m.Lock()
+	noAuthDelay.Lock()
 	time.Sleep(1 * time.Second)
-	m.Unlock()
+	noAuthDelay.Unlock()
 }
 
 func QuantumGradeAuthorizationOnSuccess() {
-	// What do you do, when legitimate users request access? Let them in in parallel. ...
+	// Let legitimate users in in parallel.
 	time.Sleep(1 * time.Second)
 }
 
@@ -185,4 +192,3 @@ func SteelWrite(i int, err error) {
 		fmt.Println(err)
 	}
 }
-
