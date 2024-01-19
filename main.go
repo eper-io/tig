@@ -53,10 +53,10 @@ var noAuthDelay sync.Mutex
 //curl -X POST 127.0.0.1:7777/?apikey=abc -T /tmp/test
 //curl 127.0.0.1:7777/?apikey=abc
 //curl 127.0.0.1:7777/f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2.tig?apikey=abc
-//cat /etc/fstab | sha256sum | head -c 64
-//printf "http://127.0.0.1:7777/`cat /etc/fstab | sha256sum | head -c 64`.tig"
+//cat /tmp/test | sha256sum | head -c 64
+//printf "http://127.0.0.1:7777/`cat /tmp/test | sha256sum | head -c 64`.tig"
 
-// Usage with generating certificates
+// Usage with generating certificates. Please review any firewall policies.
 //
 // dnf update
 // dnf install epel-release
