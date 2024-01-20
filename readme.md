@@ -28,6 +28,8 @@ There are some ways developers can extend it to be powerful.
 - Such a setup can work to make distributed processes with ease.
 - Memory mapped, and swap volumes can speed up frequently accessed files.
 - A wrapper can accept any uploads, but allow only internal downloads.
+- If you need to scale reading back the same data, we suggest to use a Kubernetes ingress of 2-5 nodes.
+- Scaling large scale frequent updates are probably the best to do on a cluster internally sharing blocks with iSCSI.
 
 ## Examples
 
