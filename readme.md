@@ -4,13 +4,13 @@ Tig is a git alternative to back up your codebase or data.
 
 The design considerations were the following.
 
-- Way more code is be generated with AI and people.
-- Storage is cheaper, simple consistency is important.
-- This makes ordering obsolete. Generative AI works on parallel versions.
+- AI generates more code than people.
+- Storage is cheaper, simple consistency is more important than disk usage.
+- Change ordering is obsolete. Generative AI works on parallel versions.
 - Time stamps are less important, coding is non-linear.
-- Stable codebase is important.
-- Revisions need to be tested and reviewed before use.
-- The stable version is highly utilized version more likely than the latest one.
+- Stable codebase is important. Hash identifies an entire repo, not a diff.
+- Revisions need to be tested and reviewed before use. Who wrote it is obsolete.
+- The stable version is a highly utilized version more likely than the latest one.
 - We still need a way to securely iterate through all versions.
 - Api key is good enough especially if it can only be set by the owner of the server.
 - Api key can be extended with 2FA wrappers easily.
