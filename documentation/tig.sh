@@ -11,10 +11,12 @@
 #sudo systemctl stop firewalld
 #sudo systemctl disable firewalld
 
+export DOMAIN=example.com
+
 cat <<EOF >Dockerfile
 FROM golang@sha256:10e3c0f39f8e237baa5b66c5295c578cac42a99536cc9333d8505324a82407d9
 RUN apt update -y && apt install -y certbot
-CMD echo certbot certonly -m 'example@example.com' --standalone -d 'example.com'; certbot renew;
+CMD echo certbot certonly -m 'example@$DOMAIN' --standalone -d '$DOMAIN'; certbot renew;
 EOF
 
 docker build --pull --no-cache -t local/certbot .
@@ -44,4 +46,4 @@ mkdir -p /data
 
 docker stop tig
 docker rm tig
-docker run --name tig -d --restart=always -p 443:443 -v /data:/data -v /etc/letsencrypt/live/example.com/privkey.pem:/etc/ssl/tig.key:ro -v /etc/letsencrypt/live/example.com/fullchain.pem:/etc/ssl/tig.crt:ro local/private
+docker run --name tig -d --restart=always -p 443:443 -v /data:/data -v /etc/letsencrypt/live/$DOMAIN/privkey.pem:/etc/ssl/tig.key:ro -v /etc/letsencrypt/live/$DOMAIN/fullchain.pem:/etc/ssl/tig.crt:ro local/private
