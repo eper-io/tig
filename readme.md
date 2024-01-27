@@ -30,7 +30,7 @@ There are some ways developers can extend it to be powerful.
 - Memory mapped, and swap volumes can speed up frequently accessed files.
 - A wrapper can customize authorization and security.
 - If you need to scale reading back the same data, we suggest to use a Kubernetes ingress of 2-5 nodes.
-- Scaling large scale frequent updates can be solved with an iSCSI Linux cluster.
+- Scaling large scale frequent updates can be solved with an iSCSI Linux cluster making it a distributed machine.
 
 ## Examples
 
