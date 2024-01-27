@@ -22,11 +22,11 @@ There are some ways developers can extend it to be powerful.
 
 - Backup tools can directly work with uploaded data easily.
 - The client can address the file any time with its SHA256 hash.
-- The client can XOR split the stream to two different cloud providers making risks lower.
+- The client can XOR split the stream to two different cloud providers lowering risk.
 - The client can do striping to two or more different cloud providers doubling bandwidth.
 - File cleanup delay can be adjusted to act like a cache or the legal backup.
 - File hashes act like page and segment addresses of Intel and AMD process pages.
-- Such a setup can work as in-memory distributed processes with ease.
+- Such a setup can work as an in-memory distributed process with optional nvram swap.
 - Memory mapped, and swap volumes can speed up frequently accessed files.
 - A wrapper can accept any uploads, but allow only internal downloads.
 - If you need to scale reading back the same data, we suggest to use a Kubernetes ingress of 2-5 nodes.
