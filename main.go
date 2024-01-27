@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -69,6 +70,11 @@ var noAuthDelay sync.Mutex
 // cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 
 func main() {
+	if len(os.Args) == 4{
+		f, _ := os.ReadFile(os.Args[1])
+		f = bytes.ReplaceAll(f, []byte(os.Args[2]), []byte(os.Args[3]))
+		_ = os.WriteFile(os.Args[1], f, 600)
+	}
 	Setup()
 	_, err := os.Stat("/etc/ssl/tig.key")
 	if err == nil {
