@@ -91,9 +91,6 @@ func main() {
 func Setup() {
 	// TODO Schedule cleanup or rely on fixing any restart root cause?
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if QuantumGradeAuthenticationFailed(w, r) {
-			return
-		}
 
 		if strings.Contains(r.URL.Path, "..") {
 			w.WriteHeader(http.StatusExpectationFailed)
@@ -101,15 +98,26 @@ func Setup() {
 		}
 
 		if r.Method == "PUT" || r.Method == "POST" {
+			if QuantumGradeAuthenticationFailed(w, r) {
+				return
+			}
 			buf := SteelBytes(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 			fileName := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(buf)))
 			Steel(os.WriteFile(fileName, buf, 0600))
-			go func(name string) {
-				time.Sleep(cleanup)
-				Steel(os.Remove(name))
-				f, _ := os.Create("deleted." + name)
-				_ = f.Close()
-			}(fileName)
+			stat, _ := os.Stat(fileName)
+			if stat != nil {
+				go func(name string, stat os.FileInfo) {
+					time.Sleep(cleanup)
+					current, _ := os.Stat(name)
+					if current != nil && current.ModTime().Equal(stat.ModTime()) {
+						// Each update is the same blob, but the sender does not know.
+						// The last sender does not expect an early deletion.
+						Steel(os.Remove(name))
+						f, _ := os.Create("deleted." + name)
+						_ = f.Close()
+					}
+				}(fileName, stat)
+			}
 		}
 		if r.Method == "HEAD" {
 			filePath := path.Join(root, r.URL.Path)
@@ -120,6 +128,9 @@ func Setup() {
 		}
 		if r.Method == "GET" {
 			if r.URL.Path == "/" {
+				if QuantumGradeAuthenticationFailed(w, r) {
+					return
+				}
 				f, _ := os.ReadDir(root)
 				// Newest file first
 				sort.SliceStable(f, func(i, j int) bool {
@@ -141,6 +152,9 @@ func Setup() {
 			}
 		}
 		if r.Method == "DELETE" {
+			if QuantumGradeAuthenticationFailed(w, r) {
+				return
+			}
 			if len(r.URL.Path) > 1 {
 				filePath := path.Join(root, r.URL.Path)
 				// TODO Cleanup time is sufficient
