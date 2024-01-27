@@ -28,15 +28,15 @@ There are some ways developers can extend it to be powerful.
 - File hashes act like page and segment addresses of Intel and AMD process pages.
 - Such a setup can work as an in-memory distributed process with optional nvram swap.
 - Memory mapped, and swap volumes can speed up frequently accessed files.
-- A wrapper can accept any uploads, but allow only internal downloads.
+- A wrapper can customize authorization and security.
 - If you need to scale reading back the same data, we suggest to use a Kubernetes ingress of 2-5 nodes.
 - Scaling large scale frequent updates can be solved with an iSCSI Linux cluster.
 
 ## Examples
 
-The temporary directory is a good candidate not to leak files.
-It may be an issue deleting across reboots or with a delay.
-You can use `/var/lib` or `/home`.
+The temporary directory is a good candidate to prevent data leaks.
+Tmp will be an issue deleting across reboots or with a delay.
+You can use `/var/lib` or `/home` for permanent storage.
 
 ```
 echo test > /tmp/test
@@ -45,7 +45,7 @@ curl 127.0.0.1:7777/?apikey=abc
 curl -X PUT 127.0.0.1:7777/?apikey=abc -T /tmp/test
 curl -X POST 127.0.0.1:7777/?apikey=abc -T /tmp/test
 curl 127.0.0.1:7777/?apikey=abc
-curl 127.0.0.1:7777/f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2.tig?apikey=abc
+curl 127.0.0.1:7777/f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2.tig
 cat /tmp/test | sha256sum | head -c 64
 printf "http://127.0.0.1:7777/`cat /tmp/test | sha256sum | head -c 64`.tig"
 ```
