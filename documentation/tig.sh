@@ -11,6 +11,9 @@
 #sudo systemctl stop firewalld
 #sudo systemctl disable firewalld
 
+# Ideally you put call file periodically  from crontab -e
+# @reboot nohup bash -c 'while true; do sleep 10; ./tig.sh; done'
+
 export DOMAIN=example.com
 
 cat <<EOF >Dockerfile
@@ -44,6 +47,7 @@ rm -f Dockerfile
 
 mkdir -p /data
 
+# This is a bit invasive. Check for build changes?
 docker stop tig
 docker rm tig
 docker run --name tig -d --restart=always -p 443:443 -v /data:/data -v /etc/letsencrypt/live/$DOMAIN/privkey.pem:/etc/ssl/tig.key:ro -v /etc/letsencrypt/live/$DOMAIN/fullchain.pem:/etc/ssl/tig.crt:ro local/private
