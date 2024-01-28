@@ -70,7 +70,7 @@ var noAuthDelay sync.Mutex
 // cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 
 func main() {
-	if len(os.Args) == 4{
+	if len(os.Args) == 4 {
 		f, _ := os.ReadFile(os.Args[1])
 		f = bytes.ReplaceAll(f, []byte(os.Args[2]), []byte(os.Args[3]))
 		_ = os.WriteFile(os.Args[1], f, 600)
@@ -157,8 +157,17 @@ func Setup() {
 			}
 			if len(r.URL.Path) > 1 {
 				filePath := path.Join(root, r.URL.Path)
-				// TODO Cleanup time is sufficient
-				fmt.Printf("delete? Steel(os.Remove(%s))\n", filePath)
+				// TODO Remove by default?
+				const waitToDelete = 24 * time.Hour
+				// Privacy may be a special case, when this is needed.
+				// Still, we do a day delay to prevent accidental tampering with live services.
+				Steel(os.Rename(filePath, filePath+".deleted"))
+				go func(path string) {
+					// TODO Delete period should be based on usage data.
+					// TODO Logically 2X the period since the last update.
+					time.Sleep(waitToDelete)
+					Steel(os.Remove(path))
+				}(filePath + ".deleted")
 			}
 		}
 	})
