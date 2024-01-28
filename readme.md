@@ -48,4 +48,6 @@ curl 127.0.0.1:7777/?apikey=abc
 curl 127.0.0.1:7777/f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2.tig
 cat /tmp/test | sha256sum | head -c 64
 printf "http://127.0.0.1:7777/`cat /tmp/test | sha256sum | head -c 64`.tig"
+# Do a full backup
+curl -s 127.0.0.1:7777 | xargs -I {} curl -s 127.0.0.1:7777{} --output .{}
 ```
