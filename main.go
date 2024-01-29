@@ -161,12 +161,12 @@ func Setup() {
 				const waitToDelete = 24 * time.Hour
 				// Privacy may be a special case, when this is needed.
 				// Still, we do a day delay to prevent accidental tampering with live services.
-				Steel(os.Rename(filePath, filePath+".deleted"))
+				fmt.Println("Steel(os.Rename(filePath, filePath+\".deleted\"))")
 				go func(path string) {
 					// TODO Delete period should be based on usage data.
 					// TODO Logically 2X the period since the last update.
 					time.Sleep(waitToDelete)
-					Steel(os.Remove(path))
+					fmt.Println("Steel(os.Remove(path))")
 				}(filePath + ".deleted")
 			}
 		}
