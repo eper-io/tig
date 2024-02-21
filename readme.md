@@ -5,6 +5,7 @@ Tig is a git alternative to back up your codebase or data.
 The design considerations were the following.
 
 - AI generates more code than people.
+- Copilots can apply generic code, author bookkeeping becomes unnecessary.
 - Storage is cheaper, simple consistency is more important than disk usage.
 - Change ordering is obsolete. Generative AI works on parallel versions.
 - Time stamps are less important, coding is non-linear.
