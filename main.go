@@ -110,7 +110,7 @@ func Setup() {
 			format := r.URL.Query().Get("format")
 			if format != "" {
 				path1 := path.Join("/", shortName)
-				_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1)+"\n", path1))
+				_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), path1))
 			}
 			stat, _ := os.Stat(fileName)
 			if stat != nil {
@@ -154,9 +154,9 @@ func Setup() {
 					if strings.HasSuffix(v.Name(), ".tig") {
 						path1 := path.Join("/", v.Name())
 						if format != "" {
-							path1 = fmt.Sprintf(strings.Replace(format, "*", "%s", 1)+"\n", path1)
+							path1 = fmt.Sprintf(strings.Replace(format, "*", "%s", 1), path1)
 						}
-						SteelWrite(io.WriteString(w, path1))
+						SteelWrite(io.WriteString(w, path1+"\n"))
 					}
 				}
 			} else {
