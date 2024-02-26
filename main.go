@@ -56,6 +56,8 @@ var noAuthDelay sync.Mutex
 //curl 127.0.0.1:7777/f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2.tig?apikey=abc
 //cat /tmp/test | sha256sum | head -c 64
 //printf "http://127.0.0.1:7777/`cat /tmp/test | sha256sum | head -c 64`.tig"
+//uuidgen | sha256sum | head -c 64 | curl --data-binary @- -X POST http://127.0.0.1:7777?format=http://127.0.0.1:7777*
+//curl -X GET http://127.0.0.1:7777?format=http://127.0.0.1:7777*
 
 // Usage with generating certificates. Please review any firewall policies.
 //
@@ -102,8 +104,14 @@ func Setup() {
 				return
 			}
 			buf := SteelBytes(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
-			fileName := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(buf)))
+			shortName := fmt.Sprintf("%x.tig", sha256.Sum256(buf))
+			fileName := path.Join(root, shortName)
 			Steel(os.WriteFile(fileName, buf, 0600))
+			format := r.URL.Query().Get("format")
+			if format != "" {
+				path1 := path.Join("/", shortName)
+				_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1)+"\n", path1))
+			}
 			stat, _ := os.Stat(fileName)
 			if stat != nil {
 				go func(name string, stat os.FileInfo) {
@@ -141,14 +149,26 @@ func Setup() {
 					}
 					return true
 				})
+				format := r.URL.Query().Get("format")
 				for _, v := range f {
 					if strings.HasSuffix(v.Name(), ".tig") {
-						SteelWrite(w.Write([]byte(path.Join("/", v.Name()) + "\n")))
+						path1 := path.Join("/", v.Name())
+						if format != "" {
+							path1 = fmt.Sprintf(strings.Replace(format, "*", "%s", 1)+"\n", path1)
+						}
+						SteelWrite(io.WriteString(w, path1))
 					}
 				}
 			} else {
 				filePath := path.Join(root, r.URL.Path)
-				SteelWrite(w.Write(SteelBytes(os.ReadFile(filePath))))
+				data := SteelBytes(os.ReadFile(filePath))
+				SteelWrite(w.Write(data))
+				go func(buf *[]byte) {
+					// Update modification time, allow first in first out cleanups,
+					// allow reshuffling storage, and ensure security
+					fileName := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(*buf)))
+					Steel(os.WriteFile(fileName, *buf, 0600))
+				}(&data)
 			}
 		}
 		if r.Method == "DELETE" {
@@ -184,24 +204,18 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 	}
 	apiKey := r.URL.Query().Get("apikey")
 	if com != apiKey {
-		QuantumGradeAuthorizationOnFail()
+		//QuantumGradeAuthorizationOnFail()
+		// What do you do, when fraudsters flood you with requests? Wait a sec ...
+		noAuthDelay.Lock()
+		time.Sleep(1 * time.Second)
+		noAuthDelay.Unlock()
 		w.WriteHeader(http.StatusUnauthorized)
 		return true
 	}
-	QuantumGradeAuthorizationOnSuccess()
-	return false
-}
-
-func QuantumGradeAuthorizationOnFail() {
-	// What do you do, when fraudsters flood you with requests? Wait a sec ...
-	noAuthDelay.Lock()
-	time.Sleep(1 * time.Second)
-	noAuthDelay.Unlock()
-}
-
-func QuantumGradeAuthorizationOnSuccess() {
+	// QuantumGradeAuthorizationOnSuccess()
 	// Let legitimate users in in parallel.
 	time.Sleep(1 * time.Second)
+	return false
 }
 
 func Steel(err error) {
