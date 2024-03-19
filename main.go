@@ -162,6 +162,12 @@ func Setup() {
 			} else {
 				filePath := path.Join(root, r.URL.Path)
 				data := SteelBytes(os.ReadFile(filePath))
+				mimeType := r.URL.Query().Get("Content-Type")
+				if mimeType != "" {
+					w.Header().Set("Content-Type", mimeType)
+				} else {
+					w.Header().Set("Content-Type", "application/octet-stream")
+				}
 				SteelWrite(w.Write(data))
 				go func(buf *[]byte) {
 					// Update modification time, allow first in first out cleanups,
