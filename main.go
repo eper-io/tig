@@ -159,13 +159,6 @@ func Setup() {
 			} else {
 				filePath := path.Join(root, r.URL.Path)
 				data := SteelBytes(os.ReadFile(filePath))
-				chTimes := r.URL.Query().Get("chtimes")
-				if len(data) > 0 && chTimes != "0" {
-					// This prevents early cleanups of frequently used blobs
-					// It is equivalent to the accessed bit of x86 class processors
-					current := time.Now()
-					_ = os.Chtimes(filePath, current, current)
-				}
 				mimeType := r.URL.Query().Get("Content-Type")
 				if mimeType != "" {
 					w.Header().Set("Content-Type", mimeType)
@@ -173,12 +166,19 @@ func Setup() {
 					w.Header().Set("Content-Type", "application/octet-stream")
 				}
 				SteelWrite(w.Write(data))
-				go func(buf *[]byte) {
-					// Update modification time, allow first in first out cleanups,
-					// allow reshuffling storage, and ensure security
-					fileName := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(*buf)))
-					Steel(os.WriteFile(fileName, *buf, 0600))
-				}(&data)
+				chTimes := r.URL.Query().Get("chtimes")
+				if chTimes != "0" {
+					go func(buf *[]byte) {
+						// allow reshuffling storage, and ensure security
+						fileName := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(*buf)))
+						//Steel(os.WriteFile(fileName, *buf, 0600))
+						// This prevents early cleanups of frequently used blobs
+						// It is equivalent to the accessed bit of x86 class processors
+						// Update modification time, allow first in first out cleanups,
+						current := time.Now()
+						_ = os.Chtimes(fileName, current, current)
+					}(&data)
+				}
 			}
 		}
 		if r.Method == "DELETE" {
