@@ -159,7 +159,8 @@ func Setup() {
 			} else {
 				filePath := path.Join(root, r.URL.Path)
 				data := SteelBytes(os.ReadFile(filePath))
-				if len(data) > 0 {
+				chTimes := r.URL.Query().Get("chtimes")
+				if len(data) > 0 && chTimes != "0" {
 					// This prevents early cleanups of frequently used blobs
 					// It is equivalent to the accessed bit of x86 class processors
 					current := time.Now()
