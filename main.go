@@ -91,7 +91,17 @@ func main() {
 }
 
 func Setup() {
-	// TODO Schedule cleanup or rely on fixing any restart root cause?
+	// Schedule the cleanup of any existing files
+	// This covers hardware upgrades
+	// Any restart issues should be fixed
+	list, _ := os.ReadDir(root)
+	for _, v := range list {
+		if strings.HasSuffix(v.Name(), ".tig") && len(v.Name()) > 256/8 {
+			filePath := path.Join(root, v.Name())
+			ScheduleCleanup(filePath)
+		}
+	}
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
 		if strings.Contains(r.URL.Path, "..") {
@@ -105,27 +115,14 @@ func Setup() {
 			}
 			buf := SteelBytes(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 			shortName := fmt.Sprintf("%x.tig", sha256.Sum256(buf))
-			fileName := path.Join(root, shortName)
-			Steel(os.WriteFile(fileName, buf, 0600))
+			filePath := path.Join(root, shortName)
+			Steel(os.WriteFile(filePath, buf, 0600))
 			format := r.URL.Query().Get("format")
 			if format != "" {
 				path1 := path.Join("/", shortName)
 				_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), path1))
 			}
-			stat, _ := os.Stat(fileName)
-			if stat != nil {
-				go func(name string, stat os.FileInfo) {
-					time.Sleep(cleanup)
-					current, _ := os.Stat(name)
-					if current != nil && current.ModTime().Equal(stat.ModTime()) {
-						// Each update is the same blob, but the sender does not know.
-						// The last sender does not expect an early deletion.
-						Steel(os.Remove(name))
-						f, _ := os.Create("deleted." + name)
-						_ = f.Close()
-					}
-				}(fileName, stat)
-			}
+			ScheduleCleanup(filePath)
 		}
 		if r.Method == "HEAD" {
 			filePath := path.Join(root, r.URL.Path)
@@ -162,6 +159,12 @@ func Setup() {
 			} else {
 				filePath := path.Join(root, r.URL.Path)
 				data := SteelBytes(os.ReadFile(filePath))
+				if len(data) > 0 {
+					// This prevents early cleanups of frequently used blobs
+					// It is equivalent to the accessed bit of x86 class processors
+					current := time.Now()
+					_ = os.Chtimes(filePath, current, current)
+				}
 				mimeType := r.URL.Query().Get("Content-Type")
 				if mimeType != "" {
 					w.Header().Set("Content-Type", mimeType)
@@ -197,6 +200,23 @@ func Setup() {
 			}
 		}
 	})
+}
+
+func ScheduleCleanup(fileName string) {
+	stat, _ := os.Stat(fileName)
+	if stat != nil {
+		go func(name string, stat os.FileInfo) {
+			time.Sleep(cleanup)
+			current, _ := os.Stat(name)
+			if current != nil && current.ModTime().Equal(stat.ModTime()) {
+				// Each update is the same blob, but the sender does not know.
+				// The last sender does not expect an early deletion.
+				Steel(os.Remove(name))
+				f, _ := os.Create("deleted." + name)
+				_ = f.Close()
+			}
+		}(fileName, stat)
+	}
 }
 
 func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bool {

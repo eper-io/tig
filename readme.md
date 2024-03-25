@@ -5,17 +5,20 @@ Tig is a git alternative to back up your codebase or data.
 The design considerations were the following.
 
 - AI generates more code than people.
-- Copilots can apply generic code, author bookkeeping becomes unnecessary.
+- Copilots can apply generic code. Author bookkeeping becomes unnecessary.
 - Storage is cheaper, simple consistency is more important than disk usage.
+- Disk compression logic can solve repetition of blocks easily.
 - Change ordering is obsolete. Generative AI works on parallel versions.
 - Time stamps are less important, coding is non-linear.
 - Stable codebase is important. Hash identifies an entire repo, not a diff.
-- Revisions need to be tested and reviewed before use. Who wrote it is obsolete.
+- Revisions need to be tested and reviewed before use. Who wrote them is obsolete.
 - The stable version is a highly utilized version more likely than the latest one.
 - Storing more revisions is more important than full push updates of repo history.
 - We still need a way to securely iterate through all versions.
 - Api key is good enough especially if it can only be set by the owner of the server.
-- Api key can be extended with 2FA wrappers easily.
+- Api key can be extended with 2FA wrappers and monitoring solutions easily.
+- Cleanup logic can solve the case of privacy laws. Your data is cleaned up in a period by default.
+- Secondary backups can still iterate and store data for longer keeping the cache fixed size.
 
 ## The power
 
@@ -27,18 +30,20 @@ There are some ways developers can extend it to be powerful.
 - The client can do striping to two or more different cloud providers doubling bandwidth.
 - File cleanup delay can be adjusted to act like a cache or the legal backup.
 - File hashes act like page and segment addresses of Intel and AMD process pages.
+- A simple html page can build a distributed process leveraging server memory.
 - Such a setup can work as an in-memory distributed process with optional nvram swap.
 - Memory mapped, and swap volumes can speed up frequently accessed files.
-- A wrapper can customize authorization and security.
+- An off the shelf wrapper can customize authorization and security.
 - If you need to scale reading back the same data, we suggest to use a Kubernetes ingress of 2-5 nodes.
 - Scaling large scale frequent updates can be solved with an iSCSI Linux cluster making it a distributed machine.
-- A simple sha256 on a file or a directory tar can identify an entire version without external API calls to git.
+- A simple sha256 on a file or a directory tar or zip can identify an entire version
+- tig eliminates external API calls to git and a necessary download of git binaries on each container.
 
 ## Examples
 
 The temporary directory is a good candidate to prevent data leaks.
 Tmp will be an issue deleting across reboots or with a delay.
-You can use `/var/lib` or `/home` for permanent storage.
+You can use `/var/lib`, `/mnt` or `/home` for permanent storage.
 
 ```
 echo test > /tmp/test
@@ -52,6 +57,7 @@ cat /tmp/test | sha256sum | head -c 64
 printf "http://127.0.0.1:7777/`cat /tmp/test | sha256sum | head -c 64`.tig"
 # Commit the current directory
 tar --exclude .git -c . | curl --data-binary @- -X POST 127.0.0.1:7777/?apikey=abc
+zip -r -x '.*' - . | curl --data-binary @- -X POST 127.0.0.1:7777/?apikey=abc
 # Do a full backup of the remote repository locally
 curl -s 127.0.0.1:7777 | xargs -I {} curl -s 127.0.0.1:7777{} --output .{}
 ```
