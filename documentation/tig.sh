@@ -47,7 +47,7 @@ rm -f Dockerfile
 
 mkdir -p /data
 
-# This is a bit invasive. Check for build changes?
+# This is a bit invasive. Should we check for build changes?
 docker stop tig
 docker rm tig
 docker run --name tig -d --restart=always -p 443:443 -v /data:/data -v /etc/letsencrypt/live/$DOMAIN/privkey.pem:/etc/ssl/tig.key:ro -v /etc/letsencrypt/live/$DOMAIN/fullchain.pem:/etc/ssl/tig.crt:ro local/private
