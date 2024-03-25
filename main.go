@@ -73,6 +73,8 @@ var noAuthDelay sync.Mutex
 
 func main() {
 	if len(os.Args) == 5 && os.Args[1] == "replace" {
+		// go build -o ~/tmp/tig main.go
+		// ~/tmp/tig replace file.txt A B
 		f, _ := os.ReadFile(os.Args[2])
 		f = bytes.ReplaceAll(f, []byte(os.Args[3]), []byte(os.Args[4]))
 		_ = os.WriteFile(os.Args[2], f, 600)
@@ -96,14 +98,13 @@ func Setup() {
 	// Any restart issues should be fixed
 	list, _ := os.ReadDir(root)
 	for _, v := range list {
-		if strings.HasSuffix(v.Name(), ".tig") && len(v.Name()) > 256/8 {
+		if HashedFileValid(v.Name()) {
 			filePath := path.Join(root, v.Name())
 			ScheduleCleanup(filePath)
 		}
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-
 		if strings.Contains(r.URL.Path, "..") {
 			w.WriteHeader(http.StatusExpectationFailed)
 			return
@@ -115,21 +116,51 @@ func Setup() {
 			}
 			buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 			shortName := fmt.Sprintf("%x.tig", sha256.Sum256(buf))
-			filePath := path.Join(root, shortName)
-			NoIssue(os.WriteFile(filePath, buf, 0600))
+			absolutePath := path.Join(root, shortName)
+			NoIssue(os.WriteFile(absolutePath, buf, 0600))
 			format := r.URL.Query().Get("format")
 			if format != "" {
-				path1 := path.Join("/", shortName)
-				_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), path1))
+				relativePath := path.Join("/", shortName)
+				_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath))
 			}
-			ScheduleCleanup(filePath)
+			ScheduleCleanup(absolutePath)
+			return
+		}
+		if r.Method == "DELETE" {
+			if !HashedFileValid(r.URL.Path) {
+				w.WriteHeader(http.StatusExpectationFailed)
+				return
+			}
+			if QuantumGradeAuthenticationFailed(w, r) {
+				return
+			}
+			if len(r.URL.Path) > 1 {
+				filePath := path.Join(root, r.URL.Path)
+				// TODO Remove by default?
+				const waitToDelete = 24 * time.Hour
+				// Privacy may be a special case, when this is needed.
+				// Still, we do a day delay to prevent accidental tampering with live services.
+				fmt.Println("NoIssue(os.Rename(filePath, filePath+\".deleted\"))")
+				go func(path string) {
+					// TODO Delete period should be based on usage data.
+					// TODO Logically 2X the period since the last update.
+					time.Sleep(waitToDelete)
+					fmt.Println("NoIssue(os.Remove(path))")
+				}(filePath + ".deleted")
+			}
+			return
 		}
 		if r.Method == "HEAD" {
+			if !HashedFileValid(r.URL.Path) {
+				w.WriteHeader(http.StatusExpectationFailed)
+				return
+			}
 			filePath := path.Join(root, r.URL.Path)
 			_, err := os.Stat(filePath)
 			if err != nil {
 				w.WriteHeader(http.StatusNotFound)
 			}
+			return
 		}
 		if r.Method == "GET" {
 			if r.URL.Path == "/" {
@@ -157,12 +188,20 @@ func Setup() {
 					}
 				}
 			} else {
-				if !strings.HasSuffix(r.URL.Path, ".tig") || len(r.URL.Path) < len(sha256.Sum256([]byte("abc"))) {
-					// We do not want to return anything else but hashed files
+				if !HashedFileValid(r.URL.Path) {
+					w.WriteHeader(http.StatusExpectationFailed)
 					return
 				}
+				// Hashes are technically strong enough not to require
 				filePath := path.Join(root, r.URL.Path)
-				data := NoIssueApi(os.ReadFile(filePath))
+				data, err := os.ReadFile(filePath)
+				if err != nil {
+					noAuthDelay.Lock()
+					time.Sleep(1 * time.Second)
+					noAuthDelay.Unlock()
+					w.WriteHeader(http.StatusExpectationFailed)
+					return
+				}
 				mimeType := r.URL.Query().Get("Content-Type")
 				if mimeType != "" {
 					w.Header().Set("Content-Type", mimeType)
@@ -184,38 +223,27 @@ func Setup() {
 					}(&data)
 				}
 			}
-		}
-		if r.Method == "DELETE" {
-			if QuantumGradeAuthenticationFailed(w, r) {
-				return
-			}
-			if len(r.URL.Path) > 1 {
-				filePath := path.Join(root, r.URL.Path)
-				// TODO Remove by default?
-				const waitToDelete = 24 * time.Hour
-				// Privacy may be a special case, when this is needed.
-				// Still, we do a day delay to prevent accidental tampering with live services.
-				fmt.Println("NoIssue(os.Rename(filePath, filePath+\".deleted\"))")
-				go func(path string) {
-					// TODO Delete period should be based on usage data.
-					// TODO Logically 2X the period since the last update.
-					time.Sleep(waitToDelete)
-					fmt.Println("NoIssue(os.Remove(path))")
-				}(filePath + ".deleted")
-			}
+			return
 		}
 	})
 }
 
+func HashedFileValid(path string) bool {
+	// We do not want to return anything else but hashed files
+	return strings.HasSuffix(path, ".tig") && len(path) > len(sha256.Sum256([]byte("")))
+}
+
 func ScheduleCleanup(fileName string) {
+	// Cleaning up files that have not been used or updated at least the default cleanup period
 	stat, _ := os.Stat(fileName)
 	if stat != nil {
 		go func(name string, stat os.FileInfo) {
+			// Ideally cleanup considers the modification time, but that may not be trusted
 			time.Sleep(cleanup)
 			current, _ := os.Stat(name)
 			if current != nil && current.ModTime().Equal(stat.ModTime()) {
 				// Each update is the same blob, but the sender does not know.
-				// The last sender does not expect an early deletion.
+				// The last user does not expect an early deletion.
 				NoIssue(os.Remove(name))
 				f, _ := os.Create("deleted." + name)
 				_ = f.Close()
@@ -225,7 +253,7 @@ func ScheduleCleanup(fileName string) {
 }
 
 func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bool {
-	// TODO lost keys are an issue already. We suggest adding 2FA here.
+	// TODO Lost keys are always issue already. We suggest adding 2FA here using any AI monitoring tool.
 	com := os.Getenv("APIKEY")
 	if com == "" {
 		b, _ := os.ReadFile(path.Join(root, "apikey"))
@@ -235,7 +263,6 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 	}
 	apiKey := r.URL.Query().Get("apikey")
 	if com != apiKey {
-		//QuantumGradeAuthorizationOnFail()
 		// What do you do, when fraudsters flood you with requests? Wait a sec ...
 		noAuthDelay.Lock()
 		time.Sleep(1 * time.Second)
@@ -243,8 +270,7 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 		w.WriteHeader(http.StatusUnauthorized)
 		return true
 	}
-	// QuantumGradeAuthorizationOnSuccess()
-	// Let legitimate users in in parallel.
+	// Let legitimate users use the system in parallel.
 	time.Sleep(1 * time.Second)
 	return false
 }
@@ -258,12 +284,13 @@ func NoIssue(err error) {
 func NoIssueApi(buf []byte, err error) []byte {
 	if err != nil {
 		fmt.Println(err)
+		return nil
 	}
 	return buf
 }
 
 func NoIssueWrite(i int, err error) {
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(i, err)
 	}
 }
