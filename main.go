@@ -83,7 +83,7 @@ func main() {
 	if err == nil {
 		err = http.ListenAndServeTLS(":443", "/etc/ssl/tig.crt", "/etc/ssl/tig.key", nil)
 	} else {
-		Steel(http.ListenAndServe(":7777", nil))
+		NoIssue(http.ListenAndServe(":7777", nil))
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -113,10 +113,10 @@ func Setup() {
 			if QuantumGradeAuthenticationFailed(w, r) {
 				return
 			}
-			buf := SteelBytes(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
+			buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 			shortName := fmt.Sprintf("%x.tig", sha256.Sum256(buf))
 			filePath := path.Join(root, shortName)
-			Steel(os.WriteFile(filePath, buf, 0600))
+			NoIssue(os.WriteFile(filePath, buf, 0600))
 			format := r.URL.Query().Get("format")
 			if format != "" {
 				path1 := path.Join("/", shortName)
@@ -153,25 +153,29 @@ func Setup() {
 						if format != "" {
 							path1 = fmt.Sprintf(strings.Replace(format, "*", "%s", 1), path1)
 						}
-						SteelWrite(io.WriteString(w, path1+"\n"))
+						NoIssueWrite(io.WriteString(w, path1+"\n"))
 					}
 				}
 			} else {
+				if !strings.HasSuffix(r.URL.Path, ".tig") || len(r.URL.Path) < len(sha256.Sum256([]byte("abc"))) {
+					// We do not want to return anything else but hashed files
+					return
+				}
 				filePath := path.Join(root, r.URL.Path)
-				data := SteelBytes(os.ReadFile(filePath))
+				data := NoIssueApi(os.ReadFile(filePath))
 				mimeType := r.URL.Query().Get("Content-Type")
 				if mimeType != "" {
 					w.Header().Set("Content-Type", mimeType)
 				} else {
 					w.Header().Set("Content-Type", "application/octet-stream")
 				}
-				SteelWrite(w.Write(data))
+				NoIssueWrite(w.Write(data))
 				chTimes := r.URL.Query().Get("chtimes")
 				if chTimes != "0" {
 					go func(buf *[]byte) {
 						// allow reshuffling storage, and ensure security
 						fileName := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(*buf)))
-						//Steel(os.WriteFile(fileName, *buf, 0600))
+						//NoIssue(os.WriteFile(fileName, *buf, 0600))
 						// This prevents early cleanups of frequently used blobs
 						// It is equivalent to the accessed bit of x86 class processors
 						// Update modification time, allow first in first out cleanups,
@@ -191,12 +195,12 @@ func Setup() {
 				const waitToDelete = 24 * time.Hour
 				// Privacy may be a special case, when this is needed.
 				// Still, we do a day delay to prevent accidental tampering with live services.
-				fmt.Println("Steel(os.Rename(filePath, filePath+\".deleted\"))")
+				fmt.Println("NoIssue(os.Rename(filePath, filePath+\".deleted\"))")
 				go func(path string) {
 					// TODO Delete period should be based on usage data.
 					// TODO Logically 2X the period since the last update.
 					time.Sleep(waitToDelete)
-					fmt.Println("Steel(os.Remove(path))")
+					fmt.Println("NoIssue(os.Remove(path))")
 				}(filePath + ".deleted")
 			}
 		}
@@ -212,7 +216,7 @@ func ScheduleCleanup(fileName string) {
 			if current != nil && current.ModTime().Equal(stat.ModTime()) {
 				// Each update is the same blob, but the sender does not know.
 				// The last sender does not expect an early deletion.
-				Steel(os.Remove(name))
+				NoIssue(os.Remove(name))
 				f, _ := os.Create("deleted." + name)
 				_ = f.Close()
 			}
@@ -245,20 +249,20 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 	return false
 }
 
-func Steel(err error) {
+func NoIssue(err error) {
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
-func SteelBytes(buf []byte, err error) []byte {
+func NoIssueApi(buf []byte, err error) []byte {
 	if err != nil {
 		fmt.Println(err)
 	}
 	return buf
 }
 
-func SteelWrite(i int, err error) {
+func NoIssueWrite(i int, err error) {
 	if err != nil {
 		fmt.Println(err)
 	}
