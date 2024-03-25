@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -24,6 +25,8 @@ import (
 
 // tig is a low complexity git competitor.
 // It is a toy git that you can review, verify, and certify cheaper.
+// No branding, no politics, no community, no brain. It just works.
+
 // The main design decision is to let the client deal with ordering and tagging.
 // This makes the server side and the protocol simple.
 // Each repository can contain files from multiple projects.
@@ -96,8 +99,9 @@ func main() {
 
 func Setup() {
 	// Schedule the cleanup of any existing files
-	// This covers hardware upgrades
-	// Any restart issues should be fixed
+	// This covers migrations due to hardware upgrades
+	// Do not rely on cleanup to cover any restart issues.
+	// Crashes or hangs should be fixed instead.
 	list, _ := os.ReadDir(root)
 	for _, v := range list {
 		if HashedFileValid(v.Name()) {
@@ -138,16 +142,14 @@ func Setup() {
 			}
 			if len(r.URL.Path) > 1 {
 				filePath := path.Join(root, r.URL.Path)
-				// TODO Remove by default?
-				const waitToDelete = 24 * time.Hour
+				var waitToDelete = cleanup
+				waitToDelete = waitToDelete / 10
+				// Normally you want to have a reasonable default period to verify files in your systems.
 				// Privacy may be a special case, when this is needed.
 				// Still, we do a day delay to prevent accidental tampering with live services.
-				fmt.Println("NoIssue(os.Rename(filePath, filePath+\".deleted\"))")
 				go func(path string) {
-					// TODO Delete period should be based on usage data.
-					// TODO Logically 2X the period since the last update.
 					time.Sleep(waitToDelete)
-					fmt.Println("NoIssue(os.Remove(path))")
+					fmt.Println("Disallowed deletion. NoIssue(os.Remove(path))")
 				}(filePath + ".deleted")
 			}
 			return
@@ -241,14 +243,18 @@ func ScheduleCleanup(fileName string) {
 	if stat != nil {
 		go func(name string, stat os.FileInfo) {
 			// Ideally cleanup considers the modification time, but that may not be trusted
+			marker := path.Join(path.Dir(name), stat.Name()+".deleting")
+			f, _ := os.Create(marker)
+			_ = f.Close()
 			time.Sleep(cleanup)
+			_ = syscall.Unlink(marker)
 			current, _ := os.Stat(name)
 			if current != nil && current.ModTime().Equal(stat.ModTime()) {
 				// Each update is the same blob, but the sender does not know.
 				// The last user does not expect an early deletion.
 				NoIssue(os.Remove(name))
-				f, _ := os.Create("deleted." + name)
-				_ = f.Close()
+			} else {
+				//fmt.Println(current.ModTime(), stat.ModTime())
 			}
 		}(fileName, stat)
 	}
@@ -279,20 +285,20 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 
 func NoIssue(err error) {
 	if err != nil {
-		fmt.Println(err)
+		//fmt.Println(err)
 	}
 }
 
 func NoIssueApi(buf []byte, err error) []byte {
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		//fmt.Println(err)
+		return []byte{}
 	}
 	return buf
 }
 
 func NoIssueWrite(i int, err error) {
 	if err != nil {
-		fmt.Println(i, err)
+		//fmt.Println(i, err)
 	}
 }
