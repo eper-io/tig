@@ -25,7 +25,7 @@ import (
 
 // tig is a low complexity git competitor.
 // It is a toy git that you can review, verify, and certify cheaper.
-// No branding, no politics, no community, no brain. It just works.
+// No branding, no politics, no community, no brainer. It just works.
 
 // The main design decision is to let the client deal with ordering and tagging.
 // This makes the server side and the protocol simple.
