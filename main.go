@@ -184,11 +184,11 @@ func Setup() {
 				format := r.URL.Query().Get("format")
 				for _, v := range f {
 					if strings.HasSuffix(v.Name(), ".tig") {
-						path1 := path.Join("/", v.Name())
+						relativePath := path.Join("/", v.Name())
 						if format != "" {
-							path1 = fmt.Sprintf(strings.Replace(format, "*", "%s", 1), path1)
+							relativePath = fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath)
 						}
-						NoIssueWrite(io.WriteString(w, path1+"\n"))
+						NoIssueWrite(io.WriteString(w, relativePath+"\n"))
 					}
 				}
 			} else {
@@ -196,7 +196,7 @@ func Setup() {
 					w.WriteHeader(http.StatusExpectationFailed)
 					return
 				}
-				// Hashes are technically strong enough not to require
+				// Hashes are technically strong enough not to require an apikey
 				filePath := path.Join(root, r.URL.Path)
 				data, err := os.ReadFile(filePath)
 				if err != nil {
