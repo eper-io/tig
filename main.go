@@ -262,16 +262,20 @@ func ScheduleCleanup(fileName string) {
 }
 
 func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bool {
-	// TODO Lost keys are always issue already. We suggest adding 2FA here using any AI monitoring tool.
-	com := os.Getenv("APIKEY")
-	if com == "" {
-		b, _ := os.ReadFile(path.Join(root, "apikey"))
-		if b != nil && len(b) > 0 {
-			com = strings.Trim(string(b), "\r\n")
+	// Lost tokens and passwords are an issue already.
+	// An api key is a good way to reliably separate apps.
+	// If your browser has issues with api keys,
+	// are you sure it does not have an issue with bearer tokens?
+	// TODO We suggest adding 2FA here & any AI monitoring tool.
+	referenceApiKey := os.Getenv("APIKEY")
+	if referenceApiKey == "" {
+		apiKeyContent, _ := os.ReadFile(path.Join(root, "apikey"))
+		if apiKeyContent != nil && len(apiKeyContent) > 0 {
+			referenceApiKey = strings.Trim(string(apiKeyContent), "\r\n")
 		}
 	}
 	apiKey := r.URL.Query().Get("apikey")
-	if com != apiKey {
+	if referenceApiKey != apiKey {
 		// What do you do, when fraudsters flood you with requests? Wait a sec ...
 		noAuthDelay.Lock()
 		time.Sleep(1 * time.Second)
