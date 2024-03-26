@@ -222,6 +222,7 @@ func Setup() {
 						// This prevents early cleanups of frequently used blobs
 						// It is equivalent to the accessed bit of x86 class processors
 						// Update modification time, allow first in first out cleanups,
+						// Make sure we have a simple & universal logic.
 						current := time.Now()
 						_ = os.Chtimes(fileName, current, current)
 					}(&data)
