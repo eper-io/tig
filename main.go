@@ -154,6 +154,9 @@ func Setup() {
 				// Privacy may be a special case, when this is needed.
 				// Still, we do a day delay to prevent accidental tampering with live services.
 				// The deletion marker is still a hashed file that prevents it to show up but with apikey.
+				// An extra benefit of the logic is that the deletion marker is an addressed object.
+				// Deleted files can be returned without quantum grade waits for attackers.
+				// Coin usage checks can be very quick as a result.
 				deletion := []byte(fmt.Sprintf("%s0", r.URL.Path))
 				deletionPath := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(deletion)))
 				_ = os.WriteFile(deletionPath, deletion, 0600)
