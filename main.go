@@ -142,15 +142,22 @@ func Setup() {
 			}
 			if len(r.URL.Path) > 1 {
 				filePath := path.Join(root, r.URL.Path)
-				var waitToDelete = cleanup
-				waitToDelete = waitToDelete / 10
+				_, err := os.Stat(filePath)
+				if err != nil {
+					noAuthDelay.Lock()
+					time.Sleep(1 * time.Second)
+					noAuthDelay.Unlock()
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
 				// Normally you want to have a reasonable default period to verify files in your systems.
 				// Privacy may be a special case, when this is needed.
 				// Still, we do a day delay to prevent accidental tampering with live services.
-				go func(path string) {
-					time.Sleep(waitToDelete)
-					fmt.Println("Disallowed deletion. NoIssue(os.Remove(path))")
-				}(filePath + ".deleted")
+				// The deletion marker is still a hashed file that prevents it to show up but with apikey.
+				deletion := []byte(fmt.Sprintf("%s0", r.URL.Path))
+				deletionPath := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(deletion)))
+				_ = os.WriteFile(deletionPath, deletion, 0600)
+				ScheduleCleanup(deletionPath)
 			}
 			return
 		}
@@ -196,7 +203,14 @@ func Setup() {
 					w.WriteHeader(http.StatusExpectationFailed)
 					return
 				}
-				// Hashes are technically strong enough not to require an apikey
+				// Hashes are strong enough not to require an apikey
+				deletion := []byte(fmt.Sprintf("%s0", r.URL.Path))
+				deletionPath := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(deletion)))
+				_, err := os.Stat(deletionPath)
+				if err == nil {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
 				filePath := path.Join(root, r.URL.Path)
 				data, err := os.ReadFile(filePath)
 				if err != nil {
