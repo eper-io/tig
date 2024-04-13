@@ -25,56 +25,16 @@ import (
 
 // tig is a low complexity git competitor.
 // It is a toy git that you can review, verify, and certify cheaper.
-// No branding, no politics, no community, no brainer. It just works.
+// No branding, no politics, no community, no-brainer.
+// It just works.
 
-// The main design decision is to let the client deal with ordering and tagging.
-// This makes the server side and the protocol simple.
-// Each repository can contain files from multiple projects.
-// Any repeated patterns can be compressed at the file system level.
-
-// Storage directory. Suggestions:
-// /tmp It cleans up fast, it is sometimes low latency memory based storage.
-// /usr/lib It is a good choice for executable modules. It is persistent.
-// /var/log Choose this for persistent data. It is persistent across reboots.
-// /opt/ Use this for entire solutions. It is persistent.
-// ~/ Use, if you run outside a container without privileges, but you need persistence across reboot.
-// It is a good idea to delayed delete files setting `cleanup`.
-// Clients can keep resubmitting them making the system more resilient.
-// Such systems comply easier with privacy regulations being just a cache not a root storage.
-
+// /tmp as default helps with cleanup, 10 minute is a good valve for demos, 1 gbps is an expected traffic.
 var root = "/tmp"
 var cleanup = 10 * time.Minute
 
 const MaxFileSize = 128 * 1024 * 1024
 
 var noAuthDelay sync.Mutex
-
-// Usage
-//
-//echo test > /tmp/test
-//echo abc > /tmp/apikey
-//curl 127.0.0.1:7777/?apikey=abc
-//curl -X PUT 127.0.0.1:7777/?apikey=abc -T /tmp/test
-//curl -X POST 127.0.0.1:7777/?apikey=abc -T /tmp/test
-//curl 127.0.0.1:7777/?apikey=abc
-//curl 127.0.0.1:7777/f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2.tig?apikey=abc
-//cat /tmp/test | sha256sum | head -c 64
-//printf "http://127.0.0.1:7777/`cat /tmp/test | sha256sum | head -c 64`.tig"
-//curl 127.0.0.1:7777/randomfileunauthorized
-//uuidgen | sha256sum | head -c 64 | curl --data-binary @- -X POST 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
-//curl -X GET 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
-
-// Usage with generating certificates. Please review any firewall policies.
-//
-// dnf update
-// dnf install epel-release
-// dnf install nginx certbot python3-certbot-apache mod_ssl python3-certbot-dns-digitalocean python3-certbot-dns-digitalocean python3-certbot-nginx
-// firewall-cmd --permanent --add-port=80/tcp --zone=public
-// firewall-cmd --permanent --add-port=443/tcp --zone=public
-// firewall-cmd --reload
-// certbot certonly --standalone -d example.com
-// cp /etc/letsencrypt/live/example.com/privkey.pem /etc/ssl/tig.key
-// cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 
 func main() {
 	if len(os.Args) == 5 && os.Args[1] == "replace" {

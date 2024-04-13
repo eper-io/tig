@@ -38,6 +38,8 @@ There are some ways developers can extend it to be powerful.
 - Scaling large scale frequent updates can be solved with an iSCSI Linux cluster making it a distributed machine.
 - A simple sha256 on a file or a directory tar or zip can identify an entire version
 - tig eliminates external API calls to git and a necessary download of git binaries on each container.
+- tig is ideal for data streaming workloads as a middle tier.
+- tig can handle bottlenecks as a result being cleaned up, but handling pushes
 
 ## Examples
 
@@ -55,9 +57,52 @@ curl 127.0.0.1:7777/?apikey=abc
 curl 127.0.0.1:7777/f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2.tig
 cat /tmp/test | sha256sum | head -c 64
 printf "http://127.0.0.1:7777/`cat /tmp/test | sha256sum | head -c 64`.tig"
+# Errors, formatting, and random content
+curl 127.0.0.1:7777/randomfileunauthorized
+uuidgen | sha256sum | head -c 64 | curl --data-binary @- -X POST 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
+curl -X GET 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
 # Commit the current directory
 tar --exclude .git -c . | curl --data-binary @- -X POST 127.0.0.1:7777/?apikey=abc
 zip -r -x '.*' - . | curl --data-binary @- -X POST 127.0.0.1:7777/?apikey=abc
 # Do a full backup of the remote repository locally
 curl -s 127.0.0.1:7777 | xargs -I {} curl -s 127.0.0.1:7777{} --output .{}
+```
+
+The main design decision is to let the client deal with ordering and tagging.
+This makes the server side and the protocol simple.
+Each repository can contain files from multiple projects.
+Any repeated patterns can be compressed at the file system level.
+
+## Storage directory suggestions:
+
+/tmp It cleans up fast, it is sometimes low latency memory based storage.
+
+/usr/lib It is a good choice for executable modules. It is persistent.
+
+/var/log Choose this for persistent data. It is persistent across reboots.
+
+/opt/ Use this for entire solutions. It is persistent.
+
+~/ Use, if you run outside a container without privileges, but you need persistence across reboot.
+
+It is a good idea to delayed delete files setting `cleanup`.
+
+Clients can keep resubmitting them making the system more resilient.
+
+Such systems comply easier with privacy regulations being just a cache not a root storage.
+
+## Usage with proper EFF certificates.
+
+Please review any firewall policies.
+
+```
+dnf update
+dnf install epel-release
+dnf install nginx certbot python3-certbot-apache mod_ssl python3-certbot-dns-digitalocean python3-certbot-dns-digitalocean python3-certbot-nginx
+firewall-cmd --permanent --add-port=80/tcp --zone=public
+firewall-cmd --permanent --add-port=443/tcp --zone=public
+firewall-cmd --reload
+certbot certonly --standalone -d example.com
+cp /etc/letsencrypt/live/example.com/privkey.pem /etc/ssl/tig.key
+cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 ```
