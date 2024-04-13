@@ -244,6 +244,8 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 	// If your browser has issues with api keys,
 	// are you sure it does not have an issue with bearer tokens?
 	// TODO We suggest adding 2FA here & any AI monitoring tool.
+	// The on storage apikey is safer than the variable due to the mutability.
+	// Make sure the logic cannot write small root files like apikey, but 64 byte SHA256.
 	referenceApiKey := os.Getenv("APIKEY")
 	if referenceApiKey == "" {
 		apiKeyContent, _ := os.ReadFile(path.Join(root, "apikey"))
@@ -253,7 +255,9 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 	}
 	apiKey := r.URL.Query().Get("apikey")
 	if referenceApiKey != apiKey {
-		// What do you do, when fraudsters flood you with requests? Wait a sec ...
+		// Authentication: Plain old safe deposit box logic with pin codes covering quantum computers.
+		// Authorization: What do you do, when fraudsters flood you with requests? Wait a sec ...
+		// Encryption: We still rely on your OS provided TLS library .
 		noAuthDelay.Lock()
 		time.Sleep(1 * time.Second)
 		noAuthDelay.Unlock()
