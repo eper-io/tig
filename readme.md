@@ -6,6 +6,8 @@ The design considerations were the following.
 
 - AI generates more code than people.
 - Copilots can apply generic code. Author bookkeeping becomes unnecessary.
+- Reliability becomes more important with more code and less time to verify.
+- It is better to address code with its entire hash than a file name, date, or version.
 - Storage is cheaper, simple consistency is more important than disk usage.
 - Disk compression logic can solve repetition of blocks easily.
 - Change ordering is obsolete. Generative AI works on parallel versions.
@@ -17,8 +19,10 @@ The design considerations were the following.
 - We still need a way to securely iterate through all versions.
 - Api key is good enough especially if it can only be set by the owner of the server.
 - Api key can be extended with 2FA wrappers and monitoring solutions easily.
-- Cleanup logic can solve the case of privacy laws. Your data is cleaned up in a period by default.
-- Secondary backups can still iterate and store data for longer keeping the cache fixed size.
+- Cleanup logic can solve the case of privacy laws.
+- Your data is cleaned up in a period like ten minutes or two weeks by default.
+- Answer to a privacy question can be "If you used the site more than two weeks ago, your data is cleared."
+- Secondary backups can still iterate and store data for longer keeping the cache container a fixed size.
 
 ## The power
 
@@ -30,7 +34,7 @@ There are some ways developers can extend it to be powerful.
 - The client can do striping to two or more different cloud providers doubling bandwidth.
 - File cleanup delay can be adjusted to act like a cache or the legal backup.
 - File hashes act like page and segment addresses of Intel and AMD process pages.
-- A simple html page can build a distributed process leveraging server memory.
+- A simple html [page](https://gitlab.com/eper.io/sat) can build a distributed process leveraging server memory.
 - Such a setup can work as an in-memory distributed process with optional nvram swap.
 - Memory mapped, and swap volumes can speed up frequently accessed files.
 - An off the shelf wrapper can customize authorization and security.
@@ -38,8 +42,10 @@ There are some ways developers can extend it to be powerful.
 - Scaling large scale frequent updates can be solved with an iSCSI Linux cluster making it a distributed machine.
 - A simple sha256 on a file or a directory tar or zip can identify an entire version
 - tig eliminates external API calls to git and a necessary download of git binaries on each container.
+- There is no need of complex protocol binaries of git to check out. It is HTTP.
 - tig is ideal for data streaming workloads as a middle tier.
-- tig can handle bottlenecks as a result being cleaned up, but handling pushes
+- tig can handle streaming bottlenecks as a result being cleaned up, but handling pushes
+- tig cannot force update a push. Any deletion propagates over time giving chance to restore.
 
 ## Examples
 
