@@ -46,6 +46,7 @@ There are some ways developers can extend it to be powerful.
 - tig is ideal for data streaming workloads as a middle tier.
 - tig can handle streaming bottlenecks as a result being cleaned up, but handling pushes
 - tig cannot force update a push. Any deletion propagates over time giving chance to restore.
+- See [example](documentation/tig.sh) to see the power of a code commit generating docker script.
 
 ## Examples
 
