@@ -7,47 +7,26 @@
 # You should have received a copy of the CC0 Public Domain Dedication along with this document.
 # If not, see https://creativecommons.org/publicdomain/zero/1.0/legalcode.
 
-# Potential resolution of errors. It depends whether you are on corporate network or public internet.
-#sudo systemctl stop firewalld
-#sudo systemctl disable firewalld
+# export DATA=https://example.com?apikey=abcd
+# export DATAGET=https://example.com
 
-# Ideally you put call file periodically  from crontab -e
-# @reboot nohup bash -c 'while true; do sleep 10; ./tig.sh; done'
-
-export DOMAIN=example.com
-
-cat <<EOF >Dockerfile
-FROM golang@sha256:10e3c0f39f8e237baa5b66c5295c578cac42a99536cc9333d8505324a82407d9
-RUN apt update -y && apt install -y certbot
-CMD echo certbot certonly -m 'example@$DOMAIN' --standalone -d '$DOMAIN'; certbot renew;
-EOF
-
-docker build --pull --no-cache -t local/certbot .
-docker run -t -i -p 80:80 -v /etc/letsencrypt:/etc/letsencrypt:rw local/certbot
-
-cat <<EOF >Dockerfile
-FROM golang@sha256:10e3c0f39f8e237baa5b66c5295c578cac42a99536cc9333d8505324a82407d9
-
-RUN git clone https://gitlab.com/eper.io/tig.git src
-
-WORKDIR /go/src
-
-RUN go build -o /go/bin/replace ./main.go
-
-RUN /go/bin/replace ./main.go "var cleanup = 10 * time.Minute" "var cleanup = 14 * 24 * time.Hour"
-
-RUN /go/bin/replace ./main.go "var root = \"/tmp\"" "var root = \"/data\""
-
-CMD go run ./main.go
-
-EOF
-
-docker build --pull --no-cache -t local/private .
-rm -f Dockerfile
-
-mkdir -p /data
+echo >/tmp/tig.sh
+cat ~/Downloads/tmp.showmycard.com/private.key|curl -X PUT --data-binary @- $DATA'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.key' >>/tmp/tig.sh
+echo >>/tmp/tig.sh
+cat ~/Downloads/tmp.showmycard.com/certificate.crt|curl -X PUT --data-binary @- $DATA'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.crt' >>/tmp/tig.sh
+echo >>/tmp/tig.sh
+echo cd /go/src >>/tmp/tig.sh
+echo >>/tmp/tig.sh
+tar --exclude .git -c . | curl --data-binary @- -X POST $DATA'&format=*' >/tmp/tig.txt
+echo curl $DATAGET$(cat /tmp/tig.txt)" | tar -x" >>/tmp/tig.sh
+echo go run main.go >>/tmp/tig.sh
+cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATA'&format=*' >/tmp/tig.txt
 
 # This is a bit invasive. Should we check for build changes?
-docker stop tig
-docker rm tig
-docker run --name tig -d --restart=always -p 443:443 -v /data:/data -v /etc/letsencrypt/live/$DOMAIN/privkey.pem:/etc/ssl/tig.key:ro -v /etc/letsencrypt/live/$DOMAIN/fullchain.pem:/etc/ssl/tig.crt:ro local/private
+echo >/tmp/tig.sh
+echo docker stop tig >>/tmp/tig.sh
+echo docker rm tig >>/tmp/tig.sh
+echo docker run --name tig -d --restart=always -p 443:443 golang@sha256:10e3c0f39f8e237baa5b66c5295c578cac42a99536cc9333d8505324a82407d9 bash -c \''curl '$DATAGET$(cat /tmp/tig.txt)'|bash'\' >>/tmp/tig.sh
+
+cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATA'&format=curl%20'$DATAGET'*'
+
