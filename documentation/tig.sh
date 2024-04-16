@@ -7,20 +7,20 @@
 # You should have received a copy of the CC0 Public Domain Dedication along with this document.
 # If not, see https://creativecommons.org/publicdomain/zero/1.0/legalcode.
 
-# export DATA=https://example.com?apikey=abcd
+# export DATASET=https://example.com?apikey=abcd
 # export DATAGET=https://example.com
 
 echo >/tmp/tig.sh
-cat ./documentation/private.key|curl -X PUT --data-binary @- $DATA'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.key' >>/tmp/tig.sh
+cat ./documentation/private.key|curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.key' >>/tmp/tig.sh
 echo >>/tmp/tig.sh
-cat ./documentation/certificate.crt ./documentation/ca_bundle.crt | curl -X PUT --data-binary @- $DATA'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.crt' >>/tmp/tig.sh
+cat ./documentation/certificate.crt ./documentation/ca_bundle.crt | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.crt' >>/tmp/tig.sh
 echo >>/tmp/tig.sh
 echo cd /go/src >>/tmp/tig.sh
 echo >>/tmp/tig.sh
-tar --exclude .git -c . | curl --data-binary @- -X POST $DATA'&format=*' >/tmp/tig.txt
+tar --exclude .git -c . | curl --data-binary @- -X POST $DATASET'&format=*' >/tmp/tig.txt
 echo curl $DATAGET$(cat /tmp/tig.txt)" | tar -x" >>/tmp/tig.sh
 echo go run main.go >>/tmp/tig.sh
-cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATA'&format=*' >/tmp/tig.txt
+cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=*' >/tmp/tig.txt
 
 # This is a bit invasive. Should we check for build changes?
 echo >/tmp/tig.sh
@@ -28,7 +28,7 @@ echo docker stop tig >>/tmp/tig.sh
 echo docker rm tig >>/tmp/tig.sh
 echo docker run --name tig -d --restart=always -p 443:443 golang@sha256:10e3c0f39f8e237baa5b66c5295c578cac42a99536cc9333d8505324a82407d9 bash -c \''curl '$DATAGET$(cat /tmp/tig.txt)'|bash'\' >>/tmp/tig.sh
 
-cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATA'&format=curl%20'$DATAGET'*'
+cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*'
 echo
 
 
