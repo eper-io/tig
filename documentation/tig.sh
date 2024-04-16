@@ -11,9 +11,9 @@
 # export DATAGET=https://example.com
 
 echo >/tmp/tig.sh
-cat ~/Downloads/tmp.showmycard.com/private.key|curl -X PUT --data-binary @- $DATA'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.key' >>/tmp/tig.sh
+cat ./documentation/private.key|curl -X PUT --data-binary @- $DATA'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.key' >>/tmp/tig.sh
 echo >>/tmp/tig.sh
-cat ~/Downloads/tmp.showmycard.com/certificate.crt|curl -X PUT --data-binary @- $DATA'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.crt' >>/tmp/tig.sh
+cat ./documentation/certificate.crt ./documentation/ca_bundle.crt | curl -X PUT --data-binary @- $DATA'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.crt' >>/tmp/tig.sh
 echo >>/tmp/tig.sh
 echo cd /go/src >>/tmp/tig.sh
 echo >>/tmp/tig.sh
@@ -29,4 +29,6 @@ echo docker rm tig >>/tmp/tig.sh
 echo docker run --name tig -d --restart=always -p 443:443 golang@sha256:10e3c0f39f8e237baa5b66c5295c578cac42a99536cc9333d8505324a82407d9 bash -c \''curl '$DATAGET$(cat /tmp/tig.txt)'|bash'\' >>/tmp/tig.sh
 
 cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATA'&format=curl%20'$DATAGET'*'
+echo
+
 
