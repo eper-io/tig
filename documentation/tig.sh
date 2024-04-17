@@ -31,7 +31,7 @@ echo docker stop tig >>/tmp/tig.sh
 echo docker rm tig >>/tmp/tig.sh
 echo docker run --name tig -d --restart=always -p 443:443 golang@sha256:10e3c0f39f8e237baa5b66c5295c578cac42a99536cc9333d8505324a82407d9 bash -c \''curl '$DATAGET$(cat /tmp/tig.txt)'|bash'\' >>/tmp/tig.sh
 
-cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*'
+cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*'%20%7C%20bash
 echo
 
 
