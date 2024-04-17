@@ -47,6 +47,7 @@ There are some ways developers can extend it to be powerful.
 - tig can handle streaming bottlenecks as a result being cleaned up, but handling pushes
 - tig cannot force update a push. Any deletion propagates over time giving chance to restore.
 - See [example](documentation/tig.sh) to see the power of a code commit generating docker script.
+- The hash construct can help to remote load less frequently used libraries or DLLs on Unix/Windows.
 
 ## Examples
 
