@@ -48,6 +48,7 @@ There are some ways developers can extend it to be powerful.
 - tig cannot force update a push. Any deletion propagates over time giving chance to restore.
 - See [example](documentation/tig.sh) to see the power of a code commit generating docker script.
 - The hash construct can help to remote load less frequently used libraries or DLLs on Unix/Windows.
+- Hash addressing makes it safer to download and run scripts like get.docker.com. You can verify anytime, what ran.
 
 ## Examples
 
