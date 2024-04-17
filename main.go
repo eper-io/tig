@@ -141,6 +141,8 @@ func Setup() {
 				if QuantumGradeAuthenticationFailed(w, r) {
 					return
 				}
+				// TODO Disallow this on temporary tig stores w/o apikey
+				// TODO Audit this on long-term stores
 				f, _ := os.ReadDir(root)
 				// Newest file first
 				sort.SliceStable(f, func(i, j int) bool {
