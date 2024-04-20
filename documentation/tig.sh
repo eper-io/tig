@@ -14,9 +14,9 @@ printf "" | curl -X PUT --data-binary @- $DATASET'&format=%25s' || echo Environm
 curl $DATAGET/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.tig || echo Environment not set.
 
 echo >/tmp/tig.sh
-cat ./documentation/private.key|curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.key' >>/tmp/tig.sh
+test -f $IMPLEMENTATION/private.key && cat $IMPLEMENTATION/private.key|curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.key' >>/tmp/tig.sh
 echo >>/tmp/tig.sh
-cat ./documentation/certificate.crt ./documentation/ca_bundle.crt | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.crt' >>/tmp/tig.sh
+test -f $IMPLEMENTATION/certificate.crt && test -f $IMPLEMENTATION/ca_bundle.crt && cat $IMPLEMENTATION/certificate.crt $IMPLEMENTATION/ca_bundle.crt | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*%20>/etc/ssl/tig.crt' >>/tmp/tig.sh
 echo >>/tmp/tig.sh
 echo cd /go/src >>/tmp/tig.sh
 echo >>/tmp/tig.sh
@@ -29,13 +29,15 @@ cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=*' >/tmp/tig.txt
 echo >/tmp/tig.sh
 echo docker stop tig >>/tmp/tig.sh
 echo docker rm tig >>/tmp/tig.sh
-echo docker run --name tig -d --restart=always -p 443:443 golang@sha256:10e3c0f39f8e237baa5b66c5295c578cac42a99536cc9333d8505324a82407d9 bash -c \''curl '$DATAGET$(cat /tmp/tig.txt)'|bash'\' >>/tmp/tig.sh
+echo docker run --name tig -d --restart=always -p 443:443 docker.io/library/golang@sha256:10e3c0f39f8e237baa5b66c5295c578cac42a99536cc9333d8505324a82407d9 bash -c \''curl '$DATAGET$(cat /tmp/tig.txt)'|bash'\' >>/tmp/tig.sh
 echo
 
 # Alternative
 # echo docker run --name tig -d --restart=always -p 443:443 --tmpfs /data:rw,size=4g golang@sha256:10e3c0f39f8e237baa5b66c5295c578cac42a99536cc9333d8505324a82407d9 bash -c \''curl '$DATAGET$(cat /tmp/tig.txt)'|bash'\' >>/tmp/tig.sh
 
 cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*'%20%7C%20bash
-echo
-
+echo >>$IMPLEMENTATION/tig.log
+echo 'apt update && apt install -y docker.io && service docker start && docker ps' >>$IMPLEMENTATION/tig.log
+echo 'yum install -y docker  && docker ps && touch /etc/containers/nodocker' >>$IMPLEMENTATION/tig.log
+cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*'%20%7C%20bash >>$IMPLEMENTATION/tig.log
 
