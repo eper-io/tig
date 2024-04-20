@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -37,14 +36,14 @@ const MaxFileSize = 128 * 1024 * 1024
 var noAuthDelay sync.Mutex
 
 func main() {
-	if len(os.Args) == 5 && os.Args[1] == "replace" {
-		// go build -o ~/tmp/tig main.go
-		// ~/tmp/tig replace file.txt A B
-		f, _ := os.ReadFile(os.Args[2])
-		f = bytes.ReplaceAll(f, []byte(os.Args[3]), []byte(os.Args[4]))
-		_ = os.WriteFile(os.Args[2], f, 600)
-		return
-	}
+	//if len(os.Args) == 5 && os.Args[1] == "replace" {
+	//	// go build -o ~/tmp/tig main.go
+	//	// ~/tmp/tig replace file.txt A B
+	//	f, _ := os.ReadFile(os.Args[2])
+	//	f = bytes.ReplaceAll(f, []byte(os.Args[3]), []byte(os.Args[4]))
+	//	_ = os.WriteFile(os.Args[2], f, 600)
+	//	return
+	//}
 	Setup()
 	_, err := os.Stat("/etc/ssl/tig.key")
 	if err == nil {

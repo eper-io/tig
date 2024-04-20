@@ -100,6 +100,20 @@ Clients can keep resubmitting them making the system more resilient.
 
 Such systems comply easier with privacy regulations being just a cache not a root storage.
 
+Here is an example to launch tig on ramdisk.
+
+```
+mkdir /tmp
+mount -t tmpfs -o size=3g tmpfs /tmp
+...
+```
+
+Here is an example to mount tmpfs into docker.
+```
+docker run -t -i --tmpfs /tmp:rw,size=2g docker.io/image
+...
+```
+
 ## Usage with proper EFF certificates.
 
 Please review any firewall policies.
