@@ -4,3 +4,4 @@ documentation/certificate.crt
 documentation/private.key
 documentation/tig.log
 implementation/
+.implementation/
