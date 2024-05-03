@@ -36,14 +36,6 @@ const MaxFileSize = 128 * 1024 * 1024
 var noAuthDelay sync.Mutex
 
 func main() {
-	//if len(os.Args) == 5 && os.Args[1] == "replace" {
-	//	// go build -o ~/tmp/tig main.go
-	//	// ~/tmp/tig replace file.txt A B
-	//	f, _ := os.ReadFile(os.Args[2])
-	//	f = bytes.ReplaceAll(f, []byte(os.Args[3]), []byte(os.Args[4]))
-	//	_ = os.WriteFile(os.Args[2], f, 600)
-	//	return
-	//}
 	Setup()
 	_, err := os.Stat("/etc/ssl/tig.key")
 	if err == nil {
@@ -234,6 +226,10 @@ func DeleteStore(w http.ResponseWriter, r *http.Request) bool {
 func WriteStore(w http.ResponseWriter, r *http.Request) {
 	buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 	shortName := fmt.Sprintf("%x.tig", sha256.Sum256(buf))
+	if IsValidTigHash(r.URL.Path) {
+		// We allow key value pairs for limited use of checkpoints, commits, and persistence tags
+		shortName = r.URL.Path
+	}
 	absolutePath := path.Join(root, shortName)
 	NoIssue(os.WriteFile(absolutePath, buf, 0600))
 	format := r.URL.Query().Get("format")
@@ -246,7 +242,7 @@ func WriteStore(w http.ResponseWriter, r *http.Request) {
 
 func IsValidTigHash(path string) bool {
 	// We do not want to return anything else but hashed files
-	return strings.HasSuffix(path, ".tig") && len(path) > len(sha256.Sum256([]byte("")))
+	return strings.HasSuffix(path, ".tig") && len(path) == len(fmt.Sprintf("/%x.tig", sha256.Sum256([]byte(""))))
 }
 
 func ScheduleCleanup(fileName string) {
