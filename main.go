@@ -229,6 +229,8 @@ func WriteStore(w http.ResponseWriter, r *http.Request) {
 	if IsValidTigHash(r.URL.Path) {
 		// We allow key value pairs for limited use of checkpoints, commits, and persistence tags
 		shortName = fmt.Sprintf("%x.tig", sha256.Sum256([]byte(r.URL.Path)))
+	} else if len(r.URL.Path) > 1 {
+		return
 	}
 	absolutePath := path.Join(root, shortName)
 	NoIssue(os.WriteFile(absolutePath, buf, 0600))
