@@ -131,9 +131,7 @@ func ReadStore(w http.ResponseWriter, r *http.Request) bool {
 	filePath := path.Join(root, r.URL.Path)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		noAuthDelay.Lock()
-		time.Sleep(1 * time.Second)
-		noAuthDelay.Unlock()
+		QuantumGradeError()
 		w.WriteHeader(http.StatusExpectationFailed)
 		return true
 	}
@@ -202,9 +200,7 @@ func DeleteStore(w http.ResponseWriter, r *http.Request) bool {
 		filePath := path.Join(root, r.URL.Path)
 		_, err := os.Stat(filePath)
 		if err != nil {
-			noAuthDelay.Lock()
-			time.Sleep(1 * time.Second)
-			noAuthDelay.Unlock()
+			QuantumGradeError()
 			w.WriteHeader(http.StatusNotFound)
 			return true
 		}
@@ -291,15 +287,19 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 		// Authentication: Plain old safe deposit box logic with pin codes covering quantum computers.
 		// Authorization: What do you do, when fraudsters flood you with requests? Wait a sec ...
 		// Encryption: We still rely on your OS provided TLS library .
-		noAuthDelay.Lock()
-		time.Sleep(1 * time.Second)
-		noAuthDelay.Unlock()
+		QuantumGradeError()
 		w.WriteHeader(http.StatusUnauthorized)
 		return true
 	}
 	// Let legitimate users use the system in parallel.
-	time.Sleep(1 * time.Second)
+	time.Sleep(12 * time.Millisecond)
 	return false
+}
+
+func QuantumGradeError() {
+	noAuthDelay.Lock()
+	time.Sleep(12 * time.Millisecond)
+	noAuthDelay.Unlock()
 }
 
 func NoIssue(err error) {
