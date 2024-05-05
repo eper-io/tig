@@ -24,7 +24,7 @@ import (
 
 // tig is a low complexity git competitor.
 // It is a toy git that you can review, verify, and certify cheaper.
-// No branding, no politics, no community, no-brainer.
+// No branding, no-brainer.
 // It just works.
 
 // /tmp as default helps with cleanup, 10 minute is a good valve for demos, 1 gbps is an expected traffic.
