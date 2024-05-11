@@ -28,7 +28,7 @@ import (
 // It just works.
 
 // /tmp as default helps with cleanup, 10 minute is a good valve for demos, 1 gbps is an expected traffic.
-var root = "/tmp"
+var root = "/data"
 var cleanup = 10 * time.Minute
 
 const MaxFileSize = 128 * 1024 * 1024
@@ -36,8 +36,12 @@ const MaxFileSize = 128 * 1024 * 1024
 var noAuthDelay sync.Mutex
 
 func main() {
+	_, err := os.Stat(root)
+	if err != nil {
+		root = "/tmp"
+	}
 	Setup()
-	_, err := os.Stat("/etc/ssl/tig.key")
+	_, err = os.Stat("/etc/ssl/tig.key")
 	if err == nil {
 		err = http.ListenAndServeTLS(":443", "/etc/ssl/tig.crt", "/etc/ssl/tig.key", nil)
 	} else {

