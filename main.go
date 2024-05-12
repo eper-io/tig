@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -145,7 +147,16 @@ func ReadStore(w http.ResponseWriter, r *http.Request) bool {
 	} else {
 		w.Header().Set("Content-Type", "application/octet-stream")
 	}
-	NoIssueWrite(w.Write(data))
+	if r.URL.Query().Get("burst") == "1" {
+		scanner := bufio.NewScanner(bytes.NewBuffer(data))
+		for scanner.Scan() {
+			filePath = path.Join(root, scanner.Text())
+			data, err = os.ReadFile(filePath)
+			NoIssueWrite(w.Write(data))
+		}
+	} else {
+		NoIssueWrite(w.Write(data))
+	}
 	chTimes := r.URL.Query().Get("chtimes")
 	if chTimes != "0" {
 		go func(buf *[]byte) {
