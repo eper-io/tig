@@ -83,6 +83,60 @@ This makes the server side and the protocol simple.
 Each repository can contain files from multiple projects.
 Any repeated patterns can be compressed at the file system level.
 
+## Key Value Store
+
+Using tig as a traditional key value store is discouraged. The reason is that hashes ensure that the data is cryptographically secure.
+
+- Use a tree of hashed segments to represent large files or database snapshots with hashes as pointers.
+- Change just the index nodes on updates.
+- Only the root snapshot key requires a value stored by a key in the traditional sense.
+- Normally we just `PUT` the data, and refer to it later with its hash.
+- We use the hash of the key instead and `PUT` in the path with the data as body to store a key value pair.
+- The indirection indicates that this is a key value pair, not raw data. This allows the key to still be used as data and referred by its own hash later. The hash of a key hash will not collide wit any other hash.
+- The formatted key returned can be used later to update the key value pair as many times as desired.
+- The key hash will never change.
+
+Example
+
+```
+% echo key | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=*'
+/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig
+% echo abc | curl -X PUT --data-binary @- 'http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig?format=*'
+/9e5166a098e9998879ec094408af35040c8e0f5f4c5de14409eeef6b610b7b99.tig
+% curl http://127.0.0.1:7777/9e5166a098e9998879ec094408af35040c8e0f5f4c5de14409eeef6b610b7b99.tig
+abc
+% echo def | curl -X PUT --data-binary @- 'http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig?format=*'
+/9e5166a098e9998879ec094408af35040c8e0f5f4c5de14409eeef6b610b7b99.tig%
+% curl http://127.0.0.1:7777/9e5166a098e9998879ec094408af35040c8e0f5f4c5de14409eeef6b610b7b99.tig
+def
+```
+
+## Bursts
+
+Oftentimes we need more data that is scattered around other files. A typical example is a simple columnar index of a data table kept updated with insertions.
+
+Burst are similar to DRAM bursts or rather scatter gather DMA, when data is fetched and concatenated from multiple addresses.
+
+```
+% printf abc | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=*' >/tmp/burst.txt
+% echo >>/tmp/burst.txt
+% printf def | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=*' >>/tmp/burst.txt
+% echo >>/tmp/burst.txt
+% printf ghi | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=*' >>/tmp/burst.txt
+% echo >>/tmp/burst.txt
+% cat /tmp/burst.txt
+/ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad.tig
+/cb8379ac2098aa165029e3938a51da0bcecfc008fd6795f401178647f96c5b34.tig
+/50ae61e841fac4e8f9e40baf2ad36ec868922ea48368c18f9535e47db56dd7fb.tig
+% cat /tmp/burst.txt | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=*'
+% curl 'http://127.0.0.1:7777/1bc742e60c70acf19ff57998fb85e129a69396526a3c7fc114d2df4acb54248e.tig'
+/ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad.tig
+/cb8379ac2098aa165029e3938a51da0bcecfc008fd6795f401178647f96c5b34.tig
+/50ae61e841fac4e8f9e40baf2ad36ec868922ea48368c18f9535e47db56dd7fb.tig
+% curl 'http://127.0.0.1:7777/1bc742e60c70acf19ff57998fb85e129a69396526a3c7fc114d2df4acb54248e.tig?burst=1'
+abcdefghi
+```
+
 ## Storage directory suggestions:
 
 /tmp It cleans up fast, it is sometimes low latency memory based storage.

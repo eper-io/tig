@@ -106,6 +106,15 @@ func Setup() {
 			return
 		}
 		if r.Method == "GET" {
+			if r.URL.Path == "/kv" {
+				if IsValidTigHash(r.URL.Path) {
+					// We allow key value pairs for limited use of checkpoints, commits, and persistence tags
+					shortName := fmt.Sprintf("%x.tig", sha256.Sum256([]byte(r.URL.Path)))
+					shortName = "/" + shortName
+					_, _ = io.WriteString(w, shortName)
+				}
+				return
+			}
 			if r.URL.Path == "/" {
 				if QuantumGradeAuthenticationFailed(w, r) {
 					return
