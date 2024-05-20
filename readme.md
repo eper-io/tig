@@ -99,15 +99,15 @@ Using tig as a traditional key value store is discouraged. The reason is that ha
 Example
 
 ```
-% echo key | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=*'
-/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig
-% echo abc | curl -X PUT --data-binary @- 'http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig?format=*'
-/9e5166a098e9998879ec094408af35040c8e0f5f4c5de14409eeef6b610b7b99.tig
-% curl http://127.0.0.1:7777/9e5166a098e9998879ec094408af35040c8e0f5f4c5de14409eeef6b610b7b99.tig
+% echo key | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
+http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig
+% echo abc | curl -X PUT --data-binary @- 'http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig?format=http://127.0.0.1:7777*'
+http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig
+% curl http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig
 abc
-% echo def | curl -X PUT --data-binary @- 'http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig?format=*'
-/9e5166a098e9998879ec094408af35040c8e0f5f4c5de14409eeef6b610b7b99.tig%
-% curl http://127.0.0.1:7777/9e5166a098e9998879ec094408af35040c8e0f5f4c5de14409eeef6b610b7b99.tig
+% echo def | curl -X PUT --data-binary @- 'http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig?format=http://127.0.0.1:7777*'
+http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig
+% curl curl http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig
 def
 ```
 
@@ -118,11 +118,11 @@ Oftentimes we need more data that is scattered around other files. A typical exa
 Burst are similar to DRAM bursts or rather scatter gather DMA, when data is fetched and concatenated from multiple addresses.
 
 ```
-% printf abc | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=*' >/tmp/burst.txt
+% printf abc | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*' >/tmp/burst.txt
 % echo >>/tmp/burst.txt
-% printf def | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=*' >>/tmp/burst.txt
+% printf def | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*' >>/tmp/burst.txt
 % echo >>/tmp/burst.txt
-% printf ghi | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=*' >>/tmp/burst.txt
+% printf ghi | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*' >>/tmp/burst.txt
 % echo >>/tmp/burst.txt
 % cat /tmp/burst.txt
 /ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad.tig
