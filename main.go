@@ -287,7 +287,7 @@ func ScheduleCleanup(fileName string) {
 				// The last user does not expect an early deletion.
 				NoIssue(os.Remove(name))
 			} else {
-				fmt.Println(current.ModTime(), stat.ModTime())
+				//fmt.Println(current.ModTime(), stat.ModTime())
 				ScheduleCleanup(fileName)
 			}
 		}(fileName, stat)
