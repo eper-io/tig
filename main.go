@@ -98,6 +98,9 @@ func Setup() {
 				w.WriteHeader(http.StatusExpectationFailed)
 				return
 			}
+			if QuantumGradeAuthenticationFailed(w, r) {
+				return
+			}
 			filePath := path.Join(root, r.URL.Path)
 			_, err := os.Stat(filePath)
 			if err != nil {
@@ -167,6 +170,9 @@ func ReadStore(w http.ResponseWriter, r *http.Request) bool {
 		NoIssueWrite(w.Write(data))
 	}
 	chTimes := r.URL.Query().Get("chtimes")
+	if chTimes == "" {
+		chTimes = "1"
+	}
 	if chTimes != "0" {
 		go func(buf *[]byte) {
 			// allow reshuffling storage, and ensure security
