@@ -10,6 +10,8 @@
 # export DATASET=https://example.com?apikey=abcd
 # export DATAGET=https://example.com
 
+git status
+
 printf "" | curl -X PUT --data-binary @- $DATASET'&format=%25s' || echo Environment not set.
 curl $DATAGET/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.tig || echo Environment not set.
 
