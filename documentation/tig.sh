@@ -33,7 +33,7 @@ echo 'service docker start; docker ps' >>/tmp/tig.sh
 echo docker stop tig >>/tmp/tig.sh
 echo docker rm tig >>/tmp/tig.sh
 echo docker run --name tig -d --restart=always -p 443:443 --tmpfs /data:rw,size=4g docker.io/library/golang@sha256:10e3c0f39f8e237baa5b66c5295c578cac42a99536cc9333d8505324a82407d9 bash -c \''curl '$DATAGET$(cat /tmp/tig.txt)'|bash'\' >>/tmp/tig.sh
-echo 'service docker start; docker ps' >>/tmp/tig.sh
+echo 'service docker start; sleep 6; docker ps' >>/tmp/tig.sh
 echo
 
 # Alternative
