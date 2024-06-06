@@ -98,12 +98,10 @@ func Setup() {
 				w.WriteHeader(http.StatusExpectationFailed)
 				return
 			}
-			if QuantumGradeAuthenticationFailed(w, r) {
-				return
-			}
 			filePath := path.Join(root, r.URL.Path)
 			_, err := os.Stat(filePath)
 			if err != nil {
+				QuantumGradeError()
 				w.WriteHeader(http.StatusNotFound)
 			}
 			return
