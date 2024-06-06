@@ -169,9 +169,10 @@ func ReadStore(w http.ResponseWriter, r *http.Request) bool {
 	} else {
 		NoIssueWrite(w.Write(data))
 	}
-	chTimes := r.URL.Query().Get("chtimes")
-	if chTimes == "" {
-		chTimes = "1"
+	chTimes := "1"
+	param := r.URL.Query().Get("chtimes")
+	if param != "" {
+		chTimes = param
 	}
 	if chTimes != "0" {
 		go func(buf *[]byte) {
@@ -306,8 +307,11 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 	// If your browser has issues with api keys,
 	// are you sure it does not have an issue with bearer tokens?
 	// TODO We suggest adding 2FA here & any AI monitoring tool.
-	// The on storage apikey is safer than the variable due to the mutability.
+	// The apikey on disk is safer than the in memory variable due to the mutability.
 	// Make sure the logic cannot write small root files like apikey, but 64 byte SHA256.
+	// Check the downloaded codebase periodically as ransomware can tamper with disk storage.
+	// Implementations that do not require backups are safer without an apikey.
+	// The logic deletes unused items periodically.
 	referenceApiKey := os.Getenv("APIKEY")
 	if referenceApiKey == "" {
 		apiKeyContent, _ := os.ReadFile(path.Join(root, "apikey"))
