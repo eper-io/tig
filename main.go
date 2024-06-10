@@ -270,6 +270,15 @@ func WriteStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	absolutePath := path.Join(root, shortName)
+	if r.URL.Query().Get("setifnot") == "1" {
+		_, err := os.Stat(absolutePath)
+		if err == nil {
+			// We do not use test and set as it is an expensive algorithm.
+			// The likes of XCHG are also expensive.
+			// Setting if not set is good enough for synchronization.
+			return
+		}
+	}
 	NoIssue(os.WriteFile(absolutePath, buf, 0600))
 	format := r.URL.Query().Get("format")
 	if format != "" {
