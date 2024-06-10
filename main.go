@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -64,7 +63,7 @@ func Setup() {
 	for _, v := range list {
 		if IsValidTigHash(v.Name()) {
 			filePath := path.Join(root, v.Name())
-			ScheduleCleanup(filePath)
+			DelayDelete(filePath)
 		}
 	}
 
@@ -140,18 +139,11 @@ func ReadStore(w http.ResponseWriter, r *http.Request) bool {
 	defer authLock.Unlock()
 
 	// Hashes are strong enough not to require an apikey
-	deletion := []byte(fmt.Sprintf("%s0", r.URL.Path))
-	deletionPath := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(deletion)))
-	_, err := os.Stat(deletionPath)
-	if err == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return true
-	}
 	filePath := path.Join(root, r.URL.Path)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		QuantumGradeError()
-		w.WriteHeader(http.StatusExpectationFailed)
+		w.WriteHeader(http.StatusNotFound)
 		return true
 	}
 	mimeType := r.URL.Query().Get("Content-Type")
@@ -186,7 +178,7 @@ func ReadStore(w http.ResponseWriter, r *http.Request) bool {
 			// Make sure we have a simple & universal logic.
 			current := time.Now()
 			_ = os.Chtimes(fileName, current, current)
-			ScheduleCleanup(fileName)
+			DelayDelete(fileName)
 		}(&data)
 	}
 	return false
@@ -234,7 +226,7 @@ func DeleteStore(w http.ResponseWriter, r *http.Request) bool {
 	authLock.Lock()
 	defer authLock.Unlock()
 
-	if len(r.URL.Path) > 1 {
+	if IsValidTigHash(r.URL.Path) {
 		filePath := path.Join(root, r.URL.Path)
 		_, err := os.Stat(filePath)
 		if err != nil {
@@ -242,19 +234,27 @@ func DeleteStore(w http.ResponseWriter, r *http.Request) bool {
 			w.WriteHeader(http.StatusNotFound)
 			return true
 		}
-		// Normally you want to have a reasonable default period to verify files in your systems.
-		// Privacy may be a special case, when this is needed.
-		// Still, we do a day delay to prevent accidental tampering with live services.
-		// The deletion marker is still a hashed file that prevents it to show up but with apikey.
-		// An extra benefit of the logic is that the deletion marker is an addressed object.
-		// Deleted files can be returned without quantum grade waits for attackers.
-		// Coin usage checks can be very quick as a result.
-		deletion := []byte(fmt.Sprintf("%s0", r.URL.Path))
-		deletionPath := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(deletion)))
-		_ = os.WriteFile(deletionPath, deletion, 0600)
-		ScheduleCleanup(deletionPath)
+		backup := filePath + ".deleted"
+		_ = os.Rename(filePath, backup)
+		DelayDelete(backup)
 	}
 	return false
+}
+
+func DelayDelete(filePath string) {
+	stat, _ := os.Stat(filePath)
+	if stat != nil {
+		go func(original os.FileInfo, backup1 string) {
+			time.Sleep(cleanup)
+			stat, _ := os.Stat(backup1)
+			if stat != nil {
+				if original.ModTime() == stat.ModTime() {
+					// This is still the same file or usage bit set.
+					_ = os.Remove(filePath)
+				}
+			}
+		}(stat, filePath)
+	}
 }
 
 func WriteStore(w http.ResponseWriter, r *http.Request) {
@@ -266,9 +266,6 @@ func WriteStore(w http.ResponseWriter, r *http.Request) {
 	if IsValidTigHash(r.URL.Path) {
 		// We allow key value pairs for limited use of checkpoints, commits, and persistence tags
 		shortName = r.URL.Path[1:]
-		deletion := []byte(fmt.Sprintf("%s0", r.URL.Path))
-		deletionPath := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(deletion)))
-		_ = os.Remove(deletionPath)
 	} else if len(r.URL.Path) > 1 {
 		return
 	}
@@ -279,36 +276,12 @@ func WriteStore(w http.ResponseWriter, r *http.Request) {
 		relativePath := path.Join("/", shortName)
 		_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath))
 	}
-	ScheduleCleanup(absolutePath)
+	DelayDelete(absolutePath)
 }
 
 func IsValidTigHash(path string) bool {
 	// We do not want to return anything else but hashed files
 	return strings.HasSuffix(path, ".tig") && len(path) == len(fmt.Sprintf("/%x.tig", sha256.Sum256([]byte(""))))
-}
-
-func ScheduleCleanup(fileName string) {
-	// Cleaning up files that have not been used or updated at least the default cleanup period
-	stat, _ := os.Stat(fileName)
-	if stat != nil {
-		go func(name string, stat os.FileInfo) {
-			// Ideally cleanup considers the modification time, but that may not be trusted
-			marker := path.Join(path.Dir(name), stat.Name()+".deleting")
-			f, _ := os.Create(marker)
-			_ = f.Close()
-			time.Sleep(cleanup)
-			_ = syscall.Unlink(marker)
-			current, _ := os.Stat(name)
-			if current != nil && current.ModTime().Equal(stat.ModTime()) {
-				// Each update is the same blob, but the sender does not know.
-				// The last user does not expect an early deletion.
-				NoIssue(os.Remove(name))
-			} else {
-				//fmt.Println(current.ModTime(), stat.ModTime())
-				ScheduleCleanup(fileName)
-			}
-		}(fileName, stat)
-	}
 }
 
 func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bool {
