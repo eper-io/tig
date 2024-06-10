@@ -36,7 +36,7 @@ var cleanup = 10 * time.Minute
 const MaxFileSize = 128 * 1024 * 1024
 
 var noAuthDelay sync.Mutex
-var lock sync.Mutex
+var authLock sync.Mutex
 
 func main() {
 	_, err := os.Stat(root)
@@ -136,8 +136,8 @@ func Setup() {
 }
 
 func ReadStore(w http.ResponseWriter, r *http.Request) bool {
-	lock.Lock()
-	defer lock.Unlock()
+	authLock.Lock()
+	defer authLock.Unlock()
 
 	// Hashes are strong enough not to require an apikey
 	deletion := []byte(fmt.Sprintf("%s0", r.URL.Path))
@@ -193,8 +193,8 @@ func ReadStore(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func ListStore(w http.ResponseWriter, r *http.Request) {
-	lock.Lock()
-	defer lock.Unlock()
+	authLock.Lock()
+	defer authLock.Unlock()
 
 	referenceApiKey := os.Getenv("APIKEY")
 	if referenceApiKey == "" {
@@ -231,8 +231,8 @@ func ListStore(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteStore(w http.ResponseWriter, r *http.Request) bool {
-	lock.Lock()
-	defer lock.Unlock()
+	authLock.Lock()
+	defer authLock.Unlock()
 
 	if len(r.URL.Path) > 1 {
 		filePath := path.Join(root, r.URL.Path)
@@ -258,8 +258,8 @@ func DeleteStore(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func WriteStore(w http.ResponseWriter, r *http.Request) {
-	lock.Lock()
-	defer lock.Unlock()
+	authLock.Lock()
+	defer authLock.Unlock()
 
 	buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 	shortName := fmt.Sprintf("%x.tig", sha256.Sum256(buf))
