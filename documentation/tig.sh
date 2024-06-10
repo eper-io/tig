@@ -27,7 +27,7 @@ cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=*' >/tmp/tig.txt
 
 # This is a bit invasive. Should we check for build changes?
 echo >/tmp/tig.sh
-echo 'apt update && apt install -y docker.io && ' >>/tmp/tig.sh
+echo 'apt update && apt install -y docker.io' >>/tmp/tig.sh
 echo 'yum install -y docker  && docker ps && touch /etc/containers/nodocker' >>/tmp/tig.sh
 echo 'service docker start; docker ps' >>/tmp/tig.sh
 echo docker stop tig >>/tmp/tig.sh
