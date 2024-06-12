@@ -249,31 +249,35 @@ func DelayDelete(filePath string) {
 }
 
 func WriteStore(w http.ResponseWriter, r *http.Request) {
-
 	buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 	shortName := fmt.Sprintf("%x.tig", sha256.Sum256(buf))
+	volatile := false
 	if IsValidTigHash(r.URL.Path) {
 		// We allow key value pairs for limited use of checkpoints, commits, and persistence tags
+		volatile = true
 		shortName = r.URL.Path[1:]
-	} else if len(r.URL.Path) > 1 {
+	} else if len(r.URL.Path) > 1 || r.URL.Path != "/" {
 		return
 	}
 	absolutePath := path.Join(root, shortName)
-	if r.URL.Query().Get("setifnot") == "1" {
-		_, err := os.Stat(absolutePath)
-		if err == nil {
-			// We do not use test and set as it is an expensive algorithm.
+	setIfNot := r.URL.Query().Get("setifnot") == "1"
+
+	flags := os.O_CREATE|os.O_TRUNC|os.O_WRONLY
+	if !volatile || setIfNot {
+		// Key value pairs may collide. We do not use file system locks to allow pure in memory storage later
+		flags = flags | os.O_EXCL
+	}
+	file, err := os.OpenFile(absolutePath, flags, 0600)
+	if err == nil {
+		_, _ = io.Copy(file, bytes.NewBuffer(buf))
+		_ = file.Close()
+	} else {
+		if setIfNot {
+			// We do not use test and set (TAS) being an expensive algorithm.
 			// The likes of XCHG are also expensive.
-			// Setting if not set is good enough for synchronization.
+			// Setting if not set is good enough for synchronization w/ retry.
 			return
 		}
-	}
-	if IsValidTigHash(r.URL.Path) {
-		// Key value pairs may collide. We do not use file system locks to allow pure in memory storage later
-		NoIssue(os.WriteFile(absolutePath+".lock", buf, 0600))
-		NoIssue(os.Rename(absolutePath+".lock", absolutePath))
-	} else {
-		NoIssue(os.WriteFile(absolutePath, buf, 0600))
 	}
 	format := r.URL.Query().Get("format")
 	if format != "" {
