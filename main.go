@@ -219,15 +219,21 @@ func ListStore(w http.ResponseWriter, r *http.Request) {
 func DeleteStore(w http.ResponseWriter, r *http.Request) bool {
 	if IsValidTigHash(r.URL.Path) {
 		filePath := path.Join(root, r.URL.Path)
-		_, err := os.Stat(filePath)
+		data, err := os.ReadFile(filePath)
 		if err != nil {
 			QuantumGradeError()
 			w.WriteHeader(http.StatusNotFound)
 			return true
 		}
-		backup := filePath + ".deleted"
-		_ = os.Rename(filePath, backup)
-		DelayDelete(backup)
+		shortName := fmt.Sprintf("%x.tig", sha256.Sum256(data))
+		absolutePath := path.Join(root, shortName)
+		if absolutePath == filePath {
+			backup := filePath + ".deleted"
+			_ = os.Rename(filePath, backup)
+			DelayDelete(backup)
+		} else {
+			_ = os.Remove(filePath)
+		}
 	}
 	return false
 }
