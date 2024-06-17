@@ -20,6 +20,7 @@ The design considerations were the following.
 - Api key is good enough especially if it can only be set by the owner of the server.
 - Api key can be extended with 2FA wrappers and monitoring solutions easily.
 - Cleanup logic can solve the case of privacy laws.
+- If the vast majority of the systems is on auto clean, finding the root personal data is easy.
 - Your data is cleaned up in a period like ten minutes or two weeks by default.
 - Answer to a privacy question can be "If you used the site more than two weeks ago, your data is cleared."
 - Secondary backups can still iterate and store data for longer keeping the cache container a fixed size.
@@ -139,19 +140,19 @@ abcdefghi
 
 ## Storage directory suggestions:
 
-/tmp It cleans up fast, it is sometimes low latency memory based storage.
+`/tmp` and any `tmpfs` : It cleans up fast, it is sometimes low latency memory based storage.
 
-/usr/lib It is a good choice for executable modules. It is persistent.
+`/usr/lib` : It is a good choice for executable modules. It is persistent.
 
-/var/log Choose this for persistent data. It is persistent across reboots.
+`/var/log` : Choose this for persistent data. It is persistent across reboots.
 
-/opt/ Use this for entire solutions. It is persistent.
+`/opt/` : Use this for entire solutions. It is persistent.
 
-~/ Use, if you run outside a container without privileges, but you need persistence across reboot.
+`~/` : Use, if you run outside a container without privileges, but you need persistence across reboot.
 
-It is a good idea to delayed delete files setting `cleanup`.
+It is a good idea to perform delayed delete on files setting `cleanup`.
 
-Clients can keep resubmitting them making the system more resilient.
+Clients can keep resubmitting them making the system more resilient. This resets the timer.
 
 Such systems comply easier with privacy regulations being just a cache not a root storage.
 
