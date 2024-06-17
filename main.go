@@ -46,7 +46,7 @@ func main() {
 	if err == nil {
 		err = http.ListenAndServeTLS(":443", "/etc/ssl/tig.crt", "/etc/ssl/tig.key", nil)
 	} else {
-		NoIssue(http.ListenAndServe(":7777", nil))
+		_ = http.ListenAndServe(":7777", nil)
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -84,7 +84,11 @@ func Setup() {
 			if QuantumGradeAuthenticationFailed(w, r) {
 				return
 			}
-			WriteStore(w, r)
+			if IsValidTigHash(r.URL.Path) {
+				WriteVolatile(w,r)
+			} else {
+				WriteNonVolatile(w, r)
+			}
 			return
 		}
 		if r.Method == "DELETE" {
@@ -205,6 +209,9 @@ func ListStore(w http.ResponseWriter, r *http.Request) {
 		return true
 	})
 	format := r.URL.Query().Get("format")
+	if format == "" {
+		format = "*"
+	}
 	for _, v := range f {
 		if strings.HasSuffix(v.Name(), ".tig") {
 			relativePath := path.Join("/", v.Name())
@@ -254,25 +261,29 @@ func DelayDelete(filePath string) {
 	}
 }
 
-func WriteStore(w http.ResponseWriter, r *http.Request) {
-	buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
-	shortName := fmt.Sprintf("%x.tig", sha256.Sum256(buf))
-	volatile := false
-	if IsValidTigHash(r.URL.Path) {
-		// We allow key value pairs for limited use of checkpoints, commits, and persistence tags
-		volatile = true
-		shortName = r.URL.Path[1:]
-	} else if len(r.URL.Path) > 1 || r.URL.Path != "/" {
+func WriteVolatile(w http.ResponseWriter, r *http.Request) {
+	if !IsValidTigHash(r.URL.Path) {
 		return
 	}
+	// We allow key value pairs for limited use of checkpoints, commits, and persistence tags
+	shortName := r.URL.Path[1:]
 	absolutePath := path.Join(root, shortName)
-	setIfNot := r.URL.Query().Get("setifnot") == "1"
 
+	// Disallow updating non-volatile "hashed" segments.
+	data, _ := os.ReadFile(absolutePath)
+	shortNameOnDisk := fmt.Sprintf("%x.tig", sha256.Sum256(data))
+	if shortNameOnDisk == shortName {
+		QuantumGradeError()
+		return
+	}
+	setIfNot := r.URL.Query().Get("setifnot") == "1"
 	flags := os.O_CREATE|os.O_TRUNC|os.O_WRONLY
-	if !volatile || setIfNot {
+	if setIfNot {
 		// Key value pairs may collide. We do not use file system locks to allow pure in memory storage later
 		flags = flags | os.O_EXCL
 	}
+
+	buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 	file, err := os.OpenFile(absolutePath, flags, 0600)
 	if err == nil {
 		_, _ = io.Copy(file, bytes.NewBuffer(buf))
@@ -286,10 +297,33 @@ func WriteStore(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	format := r.URL.Query().Get("format")
-	if format != "" {
-		relativePath := path.Join("/", shortName)
-		_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath))
+	if format == "" {
+		format = "*"
 	}
+	relativePath := path.Join("/", shortName)
+	_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath))
+	DelayDelete(absolutePath)
+}
+
+func WriteNonVolatile(w http.ResponseWriter, r *http.Request) {
+	buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
+	shortName := fmt.Sprintf("%x.tig", sha256.Sum256(buf))
+	absolutePath := path.Join(root, shortName)
+	if len(r.URL.Path) > 1 || r.URL.Path != "/" {
+		return
+	}
+	flags := os.O_CREATE|os.O_TRUNC|os.O_WRONLY | os.O_EXCL
+	file, err := os.OpenFile(absolutePath, flags, 0600)
+	if err == nil {
+		_, _ = io.Copy(file, bytes.NewBuffer(buf))
+		_ = file.Close()
+	}
+	format := r.URL.Query().Get("format")
+	if format == "" {
+		format = "*"
+	}
+	relativePath := path.Join("/", shortName)
+	_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath))
 	DelayDelete(absolutePath)
 }
 
@@ -299,16 +333,7 @@ func IsValidTigHash(path string) bool {
 }
 
 func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bool {
-	// Lost tokens and passwords are an issue already.
-	// An api key is a good way to reliably separate apps.
-	// If your browser has issues with api keys,
-	// are you sure it does not have an issue with bearer tokens?
-	// TODO We suggest adding 2FA here & any AI monitoring tool.
-	// The apikey on disk is safer than the in memory variable due to the mutability.
-	// Make sure the logic cannot write small root files like apikey, but 64 byte SHA256.
-	// Check the downloaded codebase periodically as ransomware can tamper with disk storage.
-	// Implementations that do not require backups are safer without an apikey.
-	// The logic deletes unused items periodically.
+	// TODO Make this on demand
 	referenceApiKey := os.Getenv("APIKEY")
 	if referenceApiKey == "" {
 		apiKeyContent, _ := os.ReadFile(path.Join(root, "apikey"))
@@ -336,15 +361,8 @@ func QuantumGradeError() {
 	noAuthDelay.Unlock()
 }
 
-func NoIssue(err error) {
-	if err != nil {
-		//fmt.Println(err)
-	}
-}
-
 func NoIssueApi(buf []byte, err error) []byte {
 	if err != nil {
-		//fmt.Println(err)
 		return []byte{}
 	}
 	return buf
@@ -352,6 +370,5 @@ func NoIssueApi(buf []byte, err error) []byte {
 
 func NoIssueWrite(i int, err error) {
 	if err != nil {
-		//fmt.Println(i, err)
 	}
 }

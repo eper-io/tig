@@ -25,6 +25,24 @@ The design considerations were the following.
 - Answer to a privacy question can be "If you used the site more than two weeks ago, your data is cleared."
 - Secondary backups can still iterate and store data for longer keeping the cache container a fixed size.
 
+## Security
+
+We use an API key for internal corporate networks
+
+- Lost tokens and passwords are an issue already.
+- An api key is a good way to reliably separate apps.
+- If your browser has issues with api keys, are you sure it does not have an issue with bearer tokens?
+- Your organization may enforce a hardware security module or trusted platform module for compliance.
+- Can you verify the hardware path and the integrity of a manufactured lot of HSM or TPM anyway? 
+- We suggest adding 2FA here & any AI monitoring tool based on your organization's standards.
+- The reason is that security comes at costs and responsible CIOs insist on full control on these.
+- The apikey on disk is safer than the in memory variable due to the mutability and observability.
+- Make sure the logic cannot write small root files like apikey, but 64 byte SHA256.
+- SHA512 may be an option to add as a competitive edge for easy money compared to the free download.
+- Check the downloaded codebase periodically as ransomware can tamper with memory, disk storage, or chipset buses.
+- Implementations that do not require backups are safer without an apikey.
+- The logic deletes unused items periodically for safety and privacy. It is ideal for self-healing demos.
+
 ## The power
 
 There are some ways developers can extend it to be powerful.
@@ -40,6 +58,7 @@ There are some ways developers can extend it to be powerful.
 - Memory mapped, and swap volumes can speed up frequently accessed files.
 - An off the shelf wrapper can customize authorization and security.
 - If you need to scale reading back the same data, we suggest to use a Kubernetes ingress of 2-5 nodes.
+- You can use scaling with our Mitosis algorithm, the cloud investor's and CFO's favorite dream.
 - Scaling large scale frequent updates can be solved with an iSCSI Linux cluster making it a distributed machine.
 - A simple sha256 on a file or a directory tar or zip can identify an entire version
 - tig eliminates external API calls to git and a necessary download of git binaries on each container.
