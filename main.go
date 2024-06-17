@@ -23,18 +23,14 @@ import (
 // You should have received a copy of the CC0 Public Domain Dedication along with this document.
 // If not, see https://creativecommons.org/publicdomain/zero/1.0/legalcode.
 
-// tig is a low complexity git competitor.
-// It is a toy git that you can review, verify, and certify cheaper.
-// No branding, no-brainer.
-// It just works.
+// tig is a low complexity git competitor. It is a toy git that you can review, verify, and certify cheaper.
+// No branding, no-brainer. It just works mostly for distributed in memory storage like Redis or SAP Hana.
 
-// /tmp as default helps with cleanup, 10 minute is a good valve for demos, 1 gbps is an expected traffic.
+// /tmp as default helps with cleanup, 10 minute is a good valve for demos, 1 GBps is an expected traffic.
 var root = "/data"
 var cleanup = 10 * time.Minute
-
 const MaxFileSize = 128 * 1024 * 1024
-
-var noAuthDelay sync.Mutex
+var dosProtection sync.Mutex
 
 func main() {
 	_, err := os.Stat(root)
@@ -208,10 +204,7 @@ func ListStore(w http.ResponseWriter, r *http.Request) {
 		}
 		return true
 	})
-	format := r.URL.Query().Get("format")
-	if format == "" {
-		format = "*"
-	}
+	format := Nvl(r.URL.Query().Get("format"), "*")
 	for _, v := range f {
 		if strings.HasSuffix(v.Name(), ".tig") {
 			relativePath := path.Join("/", v.Name())
@@ -296,10 +289,7 @@ func WriteVolatile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	format := r.URL.Query().Get("format")
-	if format == "" {
-		format = "*"
-	}
+	format := Nvl(r.URL.Query().Get("format"), "*")
 	relativePath := path.Join("/", shortName)
 	_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath))
 	DelayDelete(absolutePath)
@@ -318,10 +308,7 @@ func WriteNonVolatile(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(file, bytes.NewBuffer(buf))
 		_ = file.Close()
 	}
-	format := r.URL.Query().Get("format")
-	if format == "" {
-		format = "*"
-	}
+	format := Nvl(r.URL.Query().Get("format"), "*")
 	relativePath := path.Join("/", shortName)
 	_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath))
 	DelayDelete(absolutePath)
@@ -356,9 +343,9 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 }
 
 func QuantumGradeError() {
-	noAuthDelay.Lock()
+	dosProtection.Lock()
 	time.Sleep(12 * time.Millisecond)
-	noAuthDelay.Unlock()
+	dosProtection.Unlock()
 }
 
 func NoIssueApi(buf []byte, err error) []byte {
@@ -371,4 +358,12 @@ func NoIssueApi(buf []byte, err error) []byte {
 func NoIssueWrite(i int, err error) {
 	if err != nil {
 	}
+}
+
+func Nvl(in string, nvl string) (s string){
+	s = in
+	if s == "" {
+		s = nvl
+	}
+	return
 }
