@@ -1,3 +1,5 @@
+![tig](./documentation/logo.jpeg)
+
 # TIG
 
 Tig is a git alternative to back up your codebase or data.
