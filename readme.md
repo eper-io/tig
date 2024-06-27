@@ -57,6 +57,8 @@ There are some ways developers can extend it to be powerful.
 - File cleanup delay can be adjusted to act like a cache or the legal backup.
 - File hashes act like page and segment addresses of Intel and AMD process pages.
 - A simple html [page](https://gitlab.com/eper.io/sat) can build a distributed process leveraging server memory.
+- A process with distributed memory can span across servers supporting serverless and GenAI batch workloads for scale.
+- Second, minute, day, and week retency generations of remote memory servers were able to successfully run workloads like a GC heap.
 - Such a setup can work as an in-memory distributed process with optional nvram swap.
 - Memory mapped, and swap volumes can speed up frequently accessed files.
 - An off the shelf wrapper can customize authorization and security.
@@ -207,3 +209,10 @@ certbot certonly --standalone -d example.com
 cp /etc/letsencrypt/live/example.com/privkey.pem /etc/ssl/tig.key
 cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 ```
+
+## Design considerations
+
+Scheduling cleanups at startup covers migrations due to hardware upgrades.
+Do not rely on cleanup to cover any restart issues.
+Crashes or hangs should be fixed instead.
+

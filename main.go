@@ -51,9 +51,6 @@ func main() {
 
 func Setup() {
 	// Schedule the cleanup of any existing files
-	// This covers migrations due to hardware upgrades
-	// Do not rely on cleanup to cover any restart issues.
-	// Crashes or hangs should be fixed instead.
 	list, _ := os.ReadDir(root)
 	for _, v := range list {
 		if IsValidTigHash(v.Name()) {
@@ -70,11 +67,10 @@ func Setup() {
 
 		if r.Method == "PUT" || r.Method == "POST" {
 			if r.URL.Path == "/kv" {
-				buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 				// We allow key value pairs for limited use of checkpoints, commits, and persistence tags
+				buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 				shortName := fmt.Sprintf("%x.tig", sha256.Sum256(buf))
-				shortName = "/" + shortName
-				_, _ = io.WriteString(w, shortName)
+				_, _ = io.WriteString(w, "/" + shortName)
 				return
 			}
 			if QuantumGradeAuthenticationFailed(w, r) {
@@ -105,12 +101,12 @@ func Setup() {
 				w.WriteHeader(http.StatusExpectationFailed)
 				return
 			}
-			filePath := path.Join(root, r.URL.Path)
-			_, err := os.Stat(filePath)
+			_, err := os.Stat(path.Join(root, r.URL.Path))
 			if err != nil {
 				QuantumGradeError()
 				w.WriteHeader(http.StatusNotFound)
 			}
+			QuantumGradeSuccess()
 			return
 		}
 		if r.Method == "GET" {
@@ -338,13 +334,17 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 		return true
 	}
 	// Let legitimate users use the system in parallel.
-	time.Sleep(12 * time.Millisecond)
+	QuantumGradeSuccess()
 	return false
+}
+
+func QuantumGradeSuccess() {
+	time.Sleep(12 * time.Millisecond)
 }
 
 func QuantumGradeError() {
 	dosProtection.Lock()
-	time.Sleep(12 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 	dosProtection.Unlock()
 }
 
