@@ -27,6 +27,8 @@ The design considerations were the following.
 - Your data is cleaned up in a period like ten minutes or two weeks by default.
 - Answer to a privacy question can be "If you used the site more than two weeks ago, your data is cleared."
 - Secondary backups can still iterate and store data for longer keeping the cache container a fixed size.
+- We favor streaming workloads limiting the buffer size.
+- Streaming also allows reading all content in advance to deal with hashes for reliability and security.
 
 ## Security
 

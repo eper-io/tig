@@ -266,10 +266,16 @@ func WriteVolatile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	setIfNot := r.URL.Query().Get("setifnot") == "1"
-	flags := os.O_CREATE|os.O_TRUNC|os.O_WRONLY
+	flags := os.O_CREATE|os.O_WRONLY
 	if setIfNot {
 		// Key value pairs may collide. We do not use file system locks to allow pure in memory storage later
 		flags = flags | os.O_EXCL
+	}
+	appendIndex := r.URL.Query().Get("append") == "1"
+	if appendIndex {
+		flags = flags | os.O_APPEND
+	} else {
+		flags = flags | os.O_TRUNC
 	}
 
 	buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
