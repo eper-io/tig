@@ -87,22 +87,22 @@ You can use `/var/lib`, `/mnt` or `/home` for permanent storage.
 ```
 echo test > /tmp/test
 echo abc > /tmp/apikey
-curl 127.0.0.1:7777/?apikey=abc
-curl -X PUT 127.0.0.1:7777/?apikey=abc -T /tmp/test
-curl -X POST 127.0.0.1:7777/?apikey=abc -T /tmp/test
-curl 127.0.0.1:7777/?apikey=abc
-curl 127.0.0.1:7777/f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2.tig
+curl 'http://127.0.0.1:7777/?apikey=abc'
+curl -X PUT 'http://127.0.0.1:7777/?apikey=abc' -T /tmp/test
+curl -X POST 'http://127.0.0.1:7777/?apikey=abc' -T /tmp/test
+curl 'http://127.0.0.1:7777?apikey=abc'
+curl 'http://127.0.0.1:7777/f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2.tig'
 cat /tmp/test | sha256sum | head -c 64
 printf "http://127.0.0.1:7777/`cat /tmp/test | sha256sum | head -c 64`.tig"
 # Errors, formatting, and random content
-curl 127.0.0.1:7777/randomfileunauthorized
+curl 'http://127.0.0.1:7777/randomfileunauthorized'
 uuidgen | sha256sum | head -c 64 | curl --data-binary @- -X POST 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
-curl -X GET 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
+curl 'http://127.0.0.1:7777?apikey=abc&format=http://127.0.0.1:7777*'
 # Commit the current directory
-tar --exclude .git -c . | curl --data-binary @- -X POST 127.0.0.1:7777/?apikey=abc
-zip -r -x '.*' - . | curl --data-binary @- -X POST 127.0.0.1:7777/?apikey=abc
+tar --exclude .git -c . | curl --data-binary @- -X POST 'http://127.0.0.1:7777/?apikey=abc'
+zip -r -x '.*' - . | curl --data-binary @- -X POST 'http://127.0.0.1:7777/?apikey=abc'
 # Do a full backup of the remote repository locally
-curl -s 127.0.0.1:7777 | xargs -I {} curl -s 127.0.0.1:7777{} --output .{}
+curl -s 'http://127.0.0.1:7777?apikey=abc' | xargs -I {} curl -s 127.0.0.1:7777{} --output .{}
 ```
 
 The main design decision is to let the client deal with ordering and tagging.

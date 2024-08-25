@@ -4,10 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/sha256"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"sort"
@@ -23,18 +27,21 @@ import (
 // You should have received a copy of the CC0 Public Domain Dedication along with this document.
 // If not, see https://creativecommons.org/publicdomain/zero/1.0/legalcode.
 
-// tig is a low complexity git competitor. It is a toy git that you can review, verify, and certify cheaper.
+// tig is a low complexity data and code storage solution. It is a toy git that you can review, verify, and certify cheaper.
 // No branding, no-brainer. It just works mostly for distributed in memory storage like Redis or SAP Hana.
 
-// /tmp as default helps with cleanup, 10 minute is a good valve for demos, 1 GBps is an expected traffic.
+//10 minute is a good valve for demos, 1 GBps is a common cloud bandwidth.
 var root = "/data"
 var cleanup = 10 * time.Minute
 const MaxFileSize = 128 * 1024 * 1024
-var dosProtection sync.Mutex
+var cluster = "localhost"
+var ddosProtection sync.Mutex
+var instance = fmt.Sprintf("%d", time.Now().UnixNano()+rand.Int63())
 
 func main() {
 	_, err := os.Stat(root)
 	if err != nil {
+		// /tmp as fallback helps with cleanup
 		root = "/tmp"
 	}
 	Setup()
@@ -61,15 +68,40 @@ func Setup() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "..") || strings.HasPrefix(r.URL.Path, "./") {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if cluster != "localhost" && IsDistributedLoop(w, r) {
 			w.WriteHeader(http.StatusExpectationFailed)
 			return
+		}
+		body := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
+		if cluster != "localhost" && !IsDistributedCall(w, r) {
+			// UDP multicast is limited on K8S. We can use a headless service instead.
+			loc := ""
+			var wg sync.WaitGroup
+			list, _ := net.LookupHost(cluster)
+			for _, v := range list {
+				wg.Add(1)
+				go func(_w http.ResponseWriter, _r *http.Request, address string) {
+					fullAddress, forwardAddress := DistributedAddress(_w, _r, body, address)
+					if DistributedCheck(_w, _r, fullAddress) {
+						loc = forwardAddress
+					}
+					wg.Done()
+				}(w, r, v)
+			}
+			wg.Wait()
+			if loc != "" {
+				DistributedCall(w, r, body, loc)
+				return
+			}
 		}
 
 		if r.Method == "PUT" || r.Method == "POST" {
 			if r.URL.Path == "/kv" {
-				// We allow key value pairs for limited use of checkpoints, commits, and persistence tags
-				buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
-				shortName := fmt.Sprintf("%x.tig", sha256.Sum256(buf))
+				// We allow key value pairs for limited use of persistent checkpoints, commits, and tags
+				shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
 				_, _ = io.WriteString(w, "/" + shortName)
 				return
 			}
@@ -77,9 +109,9 @@ func Setup() {
 				return
 			}
 			if IsValidTigHash(r.URL.Path) {
-				WriteVolatile(w,r)
+				WriteVolatile(w,r, body)
 			} else {
-				WriteNonVolatile(w, r)
+				WriteNonVolatile(w, r, body)
 			}
 			return
 		}
@@ -107,6 +139,7 @@ func Setup() {
 				w.WriteHeader(http.StatusNotFound)
 			}
 			QuantumGradeSuccess()
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 		if r.Method == "GET" {
@@ -117,27 +150,24 @@ func Setup() {
 				ListStore(w, r)
 				return
 			} else {
-				if !IsValidTigHash(r.URL.Path) {
-					w.WriteHeader(http.StatusExpectationFailed)
-					return
-				}
-				if ReadStore(w, r) {
-					return
-				}
+				ReadStore(w, r)
 			}
 		}
 	})
 }
 
-func ReadStore(w http.ResponseWriter, r *http.Request) bool {
-	// Hashes are strong enough not to require an apikey
+func ReadStore(w http.ResponseWriter, r *http.Request) {
+	if !IsValidTigHash(r.URL.Path) {
+		w.WriteHeader(http.StatusExpectationFailed)
+		return
+	}
+	// Hashes are strong enough not to require an apikey TODO os.Link()
 	filePath := path.Join(root, r.URL.Path)
-	// TODO os.Link()
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		QuantumGradeError()
 		w.WriteHeader(http.StatusNotFound)
-		return true
+		return
 	}
 	mimeType := r.URL.Query().Get("Content-Type")
 	if mimeType != "" {
@@ -145,36 +175,35 @@ func ReadStore(w http.ResponseWriter, r *http.Request) bool {
 	} else {
 		w.Header().Set("Content-Type", "application/octet-stream")
 	}
+
 	if r.URL.Query().Get("burst") == "1" {
 		scanner := bufio.NewScanner(bytes.NewBuffer(data))
 		for scanner.Scan() {
 			filePath = path.Join(root, scanner.Text())
 			data, err = os.ReadFile(filePath)
+			MarkAsUsed(r, filePath)
 			NoIssueWrite(w.Write(data))
 		}
 	} else {
 		NoIssueWrite(w.Write(data))
+		MarkAsUsed(r, filePath)
 	}
+}
+
+func MarkAsUsed(r *http.Request, fileName string) {
 	chTimes := "1"
 	param := r.URL.Query().Get("chtimes")
 	if param != "" {
 		chTimes = param
 	}
 	if chTimes != "0" {
-		go func(buf *[]byte) {
-			// allow reshuffling storage, and ensure security
-			fileName := path.Join(root, fmt.Sprintf("%x.tig", sha256.Sum256(*buf)))
-			//NoIssue(os.WriteFile(fileName, *buf, 0600))
-			// This prevents early cleanups of frequently used blobs
-			// It is equivalent to the accessed bit of x86 class processors
-			// Update modification time, allow first in first out cleanups,
-			// Make sure we have a simple & universal logic.
+		go func(fileName1 string) {
 			current := time.Now()
 			_ = os.Chtimes(fileName, current, current)
-			DelayDelete(fileName)
-		}(&data)
+			DelayDelete(fileName1)
+		}(fileName)
 	}
-	return false
+
 }
 
 func ListStore(w http.ResponseWriter, r *http.Request) {
@@ -250,7 +279,7 @@ func DelayDelete(filePath string) {
 	}
 }
 
-func WriteVolatile(w http.ResponseWriter, r *http.Request) {
+func WriteVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 	if !IsValidTigHash(r.URL.Path) {
 		return
 	}
@@ -258,10 +287,10 @@ func WriteVolatile(w http.ResponseWriter, r *http.Request) {
 	shortName := r.URL.Path[1:]
 	absolutePath := path.Join(root, shortName)
 
-	// Disallow updating non-volatile "hashed" segments.
 	data, _ := os.ReadFile(absolutePath)
 	shortNameOnDisk := fmt.Sprintf("%x.tig", sha256.Sum256(data))
 	if shortNameOnDisk == shortName {
+		// Disallow updating secure hashed segments already stored.
 		QuantumGradeError()
 		return
 	}
@@ -277,16 +306,13 @@ func WriteVolatile(w http.ResponseWriter, r *http.Request) {
 	} else {
 		flags = flags | os.O_TRUNC
 	}
-
-	buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 	file, err := os.OpenFile(absolutePath, flags, 0600)
 	if err == nil {
-		_, _ = io.Copy(file, bytes.NewBuffer(buf))
+		_, _ = io.Copy(file, bytes.NewBuffer(body))
 		_ = file.Close()
 	} else {
 		if setIfNot {
-			// We do not use test and set (TAS) being an expensive algorithm.
-			// The likes of XCHG are also expensive.
+			// We do not use test and set (TAS) considered expensive such as (XCHG).
 			// Setting if not set is good enough for synchronization w/ retry.
 			return
 		}
@@ -297,17 +323,16 @@ func WriteVolatile(w http.ResponseWriter, r *http.Request) {
 	DelayDelete(absolutePath)
 }
 
-func WriteNonVolatile(w http.ResponseWriter, r *http.Request) {
-	buf := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
-	shortName := fmt.Sprintf("%x.tig", sha256.Sum256(buf))
+func WriteNonVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
+	shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
 	absolutePath := path.Join(root, shortName)
 	if len(r.URL.Path) > 1 || r.URL.Path != "/" {
 		return
 	}
-	flags := os.O_CREATE|os.O_TRUNC|os.O_WRONLY | os.O_EXCL
+	flags := os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_EXCL
 	file, err := os.OpenFile(absolutePath, flags, 0600)
 	if err == nil {
-		_, _ = io.Copy(file, bytes.NewBuffer(buf))
+		_, _ = io.Copy(file, bytes.NewBuffer(body))
 		_ = file.Close()
 	}
 	format := Nvl(r.URL.Query().Get("format"), "*")
@@ -316,15 +341,98 @@ func WriteNonVolatile(w http.ResponseWriter, r *http.Request) {
 	DelayDelete(absolutePath)
 }
 
+func IsDistributedLoop(w http.ResponseWriter, r *http.Request) bool {
+	u, _ := url.Parse(r.URL.String())
+	if u.Query().Get("09E3F5F0-1D87-4B54-B57D-8D046D001942") == instance {
+		return true
+	}
+	return false
+}
+
+func IsDistributedCall(w http.ResponseWriter, r *http.Request) bool {
+	u, _ := url.Parse(r.URL.String())
+	// TODO Forward all calls at teardown time
+	if u.Query().Get("09E3F5F0-1D87-4B54-B57D-8D046D001942") != "" {
+		return true
+	}
+	return false
+}
+
+func DistributedAddress(w http.ResponseWriter, r *http.Request, body []byte, address string) (string, string) {
+	u, _ := url.Parse(r.URL.String())
+	_, err := os.Stat("/etc/ssl/tig.key")
+	if err == nil {
+		u.Scheme = "https"
+		u.Host = address + ":443"
+	} else {
+		u.Scheme = "http"
+		u.Host = address + ":7777"
+	}
+	q := u.Query()
+	q.Add("09E3F5F0-1D87-4B54-B57D-8D046D001942", instance)
+	u.RawQuery = q.Encode()
+	forwardAddress := u.String()
+	if (strings.ToUpper(r.Method) == "PUT" || strings.ToUpper(r.Method) == "POST") && (u.RawPath == "" || u.RawPath == "/") {
+		shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
+		u.Path = "/" + shortName
+	}
+	return u.String(), forwardAddress
+}
+
+func DistributedCheck(w http.ResponseWriter, r *http.Request, address string) bool {
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+	req, err := http.NewRequest("HEAD", address, nil)
+	if err != nil {
+		return false
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	if resp.Body != nil {
+		_ = resp.Body.Close()
+	}
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+	return true
+}
+
+func DistributedCall(w http.ResponseWriter, r *http.Request, body []byte, address string) bool {
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+	req, err := http.NewRequest(strings.ToUpper(r.Method), address, bytes.NewBuffer(body))
+	if err != nil {
+		return false
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	w.WriteHeader(resp.StatusCode)
+	if resp.Body != nil {
+		_, _ = io.Copy(w, resp.Body)
+		_ = resp.Body.Close()
+	}
+	return true
+}
+
 func IsValidTigHash(path string) bool {
 	// We do not want to return anything else but hashed files
 	return strings.HasSuffix(path, ".tig") && len(path) == len(fmt.Sprintf("/%x.tig", sha256.Sum256([]byte(""))))
 }
 
 func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bool {
-	// TODO Make this on demand
 	referenceApiKey := os.Getenv("APIKEY")
 	if referenceApiKey == "" {
+		// TODO This can use a kv pair
 		apiKeyContent, _ := os.ReadFile(path.Join(root, "apikey"))
 		if apiKeyContent != nil && len(apiKeyContent) > 0 {
 			referenceApiKey = strings.Trim(string(apiKeyContent), "\r\n")
@@ -345,13 +453,13 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 }
 
 func QuantumGradeSuccess() {
-	time.Sleep(12 * time.Millisecond)
+	time.Sleep(6 * time.Millisecond)
 }
 
 func QuantumGradeError() {
-	dosProtection.Lock()
-	time.Sleep(20 * time.Millisecond)
-	dosProtection.Unlock()
+	ddosProtection.Lock()
+	time.Sleep(10 * time.Millisecond)
+	ddosProtection.Unlock()
 }
 
 func NoIssueApi(buf []byte, err error) []byte {
