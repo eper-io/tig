@@ -71,7 +71,7 @@ func Setup() {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if cluster != "localhost" && IsDistributedLoop(w, r) {
+		if cluster != "localhost" && IsDistributedLocalCall(w, r) {
 			w.WriteHeader(http.StatusExpectationFailed)
 			return
 		}
@@ -341,9 +341,9 @@ func WriteNonVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 	DelayDelete(absolutePath)
 }
 
-func IsDistributedLoop(w http.ResponseWriter, r *http.Request) bool {
+func IsDistributedLocalCall(w http.ResponseWriter, r *http.Request) bool {
 	u, _ := url.Parse(r.URL.String())
-	if u.Query().Get("09E3F5F0-1D87-4B54-B57D-8D046D001942") == instance {
+	if strings.ToUpper(r.Method) == "HEAD" && u.Query().Get("09E3F5F0-1D87-4B54-B57D-8D046D001942") == instance {
 		return true
 	}
 	return false
