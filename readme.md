@@ -153,7 +153,7 @@ def
 
 Oftentimes we need more data that is scattered around other files. A typical example is a simple columnar index of a data table kept updated with insertions.
 
-Burst are similar to DRAM bursts or rather scatter gather DMA, when data is fetched and concatenated from multiple addresses.
+Bursts are similar to DRAM bursts or scatter gather DMA, when data is fetched and concatenated from multiple addresses.
 
 ```
 % printf abc | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*' >/tmp/burst.txt
