@@ -179,8 +179,6 @@ abcdefghi
 
 `/data` is the default location that can be created before startup.
 
-`docker run -d --mount type=tmpfs,destination=/data,tmpfs-size=4g tig:latest` specifies an example to map to memory.
-
 `/tmp` and any `tmpfs` : It cleans up fast, it is sometimes low latency memory based storage.
 
 `/usr/lib` : It is a good choice for executable modules. It is persistent.
@@ -195,27 +193,37 @@ It is a good idea to perform delayed delete on files setting the cleanup period.
 
 Clients can keep resubmitting or accessing them making the system more resilient.
 
-Updates and queries resets the timer. It restarts on starting the container on existing data.
+Updates and queries reset the timer. The timer restarts on existing data when we restart the container.
 
-Such systems comply easier with privacy regulations being just a cache not a root storage.
+Such systems comply easier with privacy regulations. It is just a temporary cache not a root storage.
 
 Here is an example to launch tig on ramdisk.
 
 ```
-mkdir /tmp
-mount -t tmpfs -o size=3g tmpfs /tmp
+mkdir /data
+mount -t tmpfs -o size=24g tmpfs /data
 ...
 ```
 
 Here is an example to mount tmpfs into docker.
 ```
-docker run -t -i --tmpfs /tmp:rw,size=2g tig:latest
+docker run -t -i --tmpfs /data:rw,size=4g tig:latest
 ...
+```
+
+The last one specifies a Docker example to map some memory.
+```
+`docker run -d --mount type=tmpfs,destination=/data,tmpfs-size=4g tig:latest`
 ```
 
 ## Usage with proper EFF certificates.
 
-Please review any firewall policies.
+Please review any firewall policies before switching to TLS and SSL certificates.
+
+This is an example with the EFF's free letsencrypt solution.
+
+We suggest using a paid provider like zerossl.com or your cloud account.
+They were proven to be more widely accepted by browsers and operating systems.
 
 ```
 dnf update
