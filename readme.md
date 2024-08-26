@@ -23,12 +23,12 @@ The design considerations were the following.
 - Api key is good enough for admins, especially if it can only be set by the owner of the server.
 - Api key can be extended with 2FA wrappers and monitoring solutions easily.
 - The retention and cleanup logic solves the case of privacy laws.
-- If the vast majority of the systems is on auto clean, finding the root personal data is easy.
+- If the vast majority of the systems is on auto clean, finding the source of personal data is easy.
 - Your data is cleaned up in a period like ten minutes or two weeks by default.
 - Answer to a privacy question can be "If you used the site more than two weeks ago, your data is deleted."
-- Secondary backups can still iterate and store data for longer keeping the cache container a fixed size.
-- Most systems being on auto clean will point to the last backup to find and handle private data.
-- We favor streaming workloads limiting the individual buffer size.
+- Secondary backups can still iterate and store data for longer keeping the cache container size fixed.
+- Most systems are on auto clean. Use the last backup to retrieve or delete private data.
+- We favor streaming workloads limiting the buffer size used.
 - Streaming with smaller blocks also allows prefetching content in advance for reliability and security.
 - We require some clustering behavior with any replicas handled in applications.
 - Clustering is balanced, when hashes identify the blocks.
