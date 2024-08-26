@@ -29,7 +29,7 @@ The design considerations were the following.
 - Secondary backups can still iterate and store data for longer keeping the cache container size fixed.
 - Most systems are on auto clean. Use the last backup to retrieve or delete private data.
 - We favor streaming workloads limiting the buffer size used.
-- Streaming with smaller blocks also allows prefetching content in advance for reliability and security.
+- Streaming with smaller blocks allows prefetching content in advance for reliability and security.
 - We require some clustering behavior with any replicas handled in applications.
 - Clustering is balanced, when hashes identify the blocks.
 
