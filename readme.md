@@ -220,9 +220,9 @@ The last one specifies a Docker example to map some memory.
 
 Please review any firewall policies before switching to TLS and SSL certificates.
 
-This is an example with the EFF's free letsencrypt solution.
+This is an example with the EFF's free `letsencrypt` solution.
 
-We suggest using a paid provider like zerossl.com or your cloud account.
+We suggest using a paid provider like `zerossl.com` or your cloud account.
 They were proven to be more widely accepted by browsers and operating systems.
 
 ```
