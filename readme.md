@@ -79,7 +79,7 @@ There are some ways developers can extend it to be powerful.
 - tig is ideal for data streaming workloads as a middle tier.
 - tig can handle streaming bottlenecks as a result being cleaned up.
 - tig cannot force update a push like git. Any deletion propagates over time giving a chance to restore.
-- See [example](documentation/tig.sh) to see the power of a code commit generating docker script.
+- See [example](documentation/commit.sh) to see the power of a code commit generating docker script.
 - The hash construct can help to remote load less frequently used libraries like DLLs on Unix/Windows.
 - Hash addressing makes it safer to download and run scripts like get.docker.com.
 - You can verify anytime, what ran by hashing the entire launch payload.
