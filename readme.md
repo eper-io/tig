@@ -7,7 +7,7 @@ Tig is a git alternative to back up your codebase or data.
 The design considerations were the following.
 
 - AI generates more code than people.
-- Code duplication storing by hash is a huge cost reduction opportunity in data lakes.
+- Storing by hash is a huge cost reduction opportunity in data lakes due to duplications.
 - Copilots can apply generic code. Author bookkeeping becomes unnecessary.
 - Reliability storing by hash is more important with more code and less time to verify.
 - It is safer to address code with its entire hash than a file name, date, or version.
