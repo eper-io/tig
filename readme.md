@@ -90,10 +90,6 @@ There are some ways developers can extend it to be powerful.
 
 ## Examples
 
-The temporary directory is a good candidate to prevent data leaks.
-Tmp will be an issue deleting across reboots or with a delay.
-You can use `/var/lib`, `/mnt` or `/home` for permanent storage.
-
 ```
 echo test > /tmp/test
 echo abc > /tmp/apikey
@@ -132,7 +128,8 @@ Using tig as a traditional key value store is a minor feature. The reason is tha
 - We specify the key with its SHA256 hash in the path.
 - We `HTTP PUT` to this hashed key path with the data as body to store a key value pair.
 - The presence of the path at `HTTP PUT` indicates that this is a key value pair, not raw data.
-- The hash of a key will not collide with any other storage of that pattern.
+- The hash of a key will collide with any other storage of that pattern.
+- Use the hash of the hash of a key to resolve this conflict of patterns.
 - If a data file has been stored by its hash, we do not allow it to be overwritten as a key value pair.
 - The key hash returned on success can be used later to update the key value pair as many times as desired.
 - The key hash will never change.
