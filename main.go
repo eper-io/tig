@@ -143,7 +143,7 @@ func Setup() {
 			if r.URL.Path == "/kv" {
 				// We allow key value pairs for limited use of persistent checkpoints, commits, and tags
 				shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
-				_, _ = io.WriteString(w, "/"+shortName)
+				_, _ = io.WriteString(w, "/" + shortName)
 				return
 			}
 			if QuantumGradeAuthenticationFailed(w, r) {
