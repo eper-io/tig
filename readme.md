@@ -277,3 +277,132 @@ cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 - Terminating with a timeout is very deterministic and secure way to offload and scale in & out.
 
 - Use a cluster of two nodes or more to implement cluster balancing.
+
+- The ever replacing dynamism of pods with lifetime makes the solution flexible and scalable.
+
+## Kubernetes
+
+You can run tig as a cluster deployment with multiple pods on Kubernetes.
+
+Here is an example yaml file that we tested with Amazon EKS.
+
+Generate a code file running tig already on example.com. Place `certificate.crt`, `ba_bundle.crt`, `private.key` into `./.implementation/example.com`
+
+You can either use Letsencrypt or zerossl as described above.
+
+```bash
+IMPLEMENTATION=./.implementation/example.com DATAGET=https://example.com DATASET=https://example.com ./documentation/tig.sh
+```
+
+```yaml
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tig-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tig-app
+  template:
+    metadata:
+      labels:
+        app: tig-app
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: tig-app
+        image: nginx
+        ports:
+        - containerPort: 80 
+      - name: www-tig-app
+        image: golang:1.19.3
+        command: ["/bin/sh"]
+        args: ["-c", "cd /go/src;curl https://example.com/1915.....c9d5.tig | tar -x;go run main.go"]
+        ports:
+        - containerPort: 443
+
+---
+
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: tig-app
+spec:
+  type: LoadBalancer
+  selector:
+    app: tig-app
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 443
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+
+---
+
+# Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: tig-app-headless
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: tig-app
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 443
+
+---
+
+# Ingress for redirects
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tig-app
+spec:
+  rules:
+  - host: tig.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: tig-app
+            port:
+              number: 80
+
+---
+
+# Ingress for secure tig service
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: https-tig-app
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  rules:
+  - host: www.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: tig-app
+            port: 
+              number: 443
+```
