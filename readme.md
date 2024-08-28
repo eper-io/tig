@@ -267,3 +267,13 @@ cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 - Since we may use K8S we opt for querying a DNS address specified by a headless service.
 
 - The HTTP forwarding logic makes the solution very flexible.
+
+- Fully utilizing standalone GPU, memory, and disk clusters is an opportunity.
+
+- Clusters can scale using pod termination signals, an additional API, or timeout.
+
+- We decided to implement cluster balancing with a timeout to offload & terminate.
+
+- Terminating with a timeout is very deterministic and secure way to offload and scale in & out.
+
+- Use a cluster of two nodes or more to implement cluster balancing.

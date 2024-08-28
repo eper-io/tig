@@ -33,6 +33,7 @@ import (
 //10 minute is a good valve for demos, 1 GBps is a common cloud bandwidth.
 var root = "/data"
 var cleanup = 10 * time.Minute
+var lifetime = time.Duration(0)
 const MaxFileSize = 128 * 1024 * 1024
 var cluster = "localhost"
 var ddosProtection sync.Mutex
@@ -65,36 +66,76 @@ func Setup() {
 			DelayDelete(filePath)
 		}
 	}
-
+	var start = time.Now()
+	if lifetime != 0 {
+		go func() {
+			running := true
+			for {
+				time.Sleep(lifetime / 100)
+				terminating := IsTerminating(start)
+				if running && terminating {
+					running = false
+					fmt.Println("terminating started after ", lifetime-cleanup)
+				}
+				terminated := time.Now().After(start.Add(lifetime + 1 * time.Second))
+				if terminated {
+					fmt.Println("terminating after ", lifetime)
+					os.Exit(0)
+				}
+			}
+		}()
+	}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "..") || strings.HasPrefix(r.URL.Path, "./") {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		if cluster != "localhost" && IsDistributedLocalCall(w, r) {
-			w.WriteHeader(http.StatusExpectationFailed)
+			w.WriteHeader(http.StatusLoopDetected)
 			return
 		}
 		body := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 		if cluster != "localhost" && !IsDistributedCall(w, r) {
 			// UDP multicast is limited on K8S. We can use a headless service instead.
-			loc := ""
+			remoteAddress := ""
+			replicaAddress := ""
 			var wg sync.WaitGroup
 			list, _ := net.LookupHost(cluster)
+			terminating := IsTerminating(start)
 			for _, v := range list {
 				wg.Add(1)
 				go func(_w http.ResponseWriter, _r *http.Request, address string) {
-					fullAddress, forwardAddress := DistributedAddress(_w, _r, body, address)
-					if DistributedCheck(_w, _r, fullAddress) {
-						loc = forwardAddress
+					verifyAddress, forwardAddress, rootAddress := DistributedAddress(_w, _r, body, address)
+					if DistributedCheck(_w, _r, verifyAddress) {
+						remoteAddress = forwardAddress
+					}
+					if terminating && replicaAddress == "" {
+						if DistributedCheck(_w, _r, rootAddress) {
+							replicaAddress = forwardAddress
+						}
 					}
 					wg.Done()
 				}(w, r, v)
 			}
 			wg.Wait()
-			if loc != "" {
-				DistributedCall(w, r, body, loc)
+			if remoteAddress != "" {
+				DistributedCall(w, r, r.Method, body, remoteAddress)
 				return
+			}
+			terminatingLocalNode := terminating && replicaAddress != ""
+			if terminatingLocalNode {
+				remoteAddress = replicaAddress
+				method := strings.ToUpper(r.Method)
+				if method == "GET" || method == "HEAD" {
+					x := bytes.NewBuffer([]byte{})
+					ReadStoreBuffer(x, r)
+					body = x.Bytes()
+					DistributedCall(w, r, "PUT", body, remoteAddress)
+				}
+				if method != "DELETE" {
+					DistributedCall(w, r, r.Method, body, remoteAddress)
+					return
+				}
 			}
 		}
 
@@ -102,14 +143,14 @@ func Setup() {
 			if r.URL.Path == "/kv" {
 				// We allow key value pairs for limited use of persistent checkpoints, commits, and tags
 				shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
-				_, _ = io.WriteString(w, "/" + shortName)
+				_, _ = io.WriteString(w, "/"+shortName)
 				return
 			}
 			if QuantumGradeAuthenticationFailed(w, r) {
 				return
 			}
 			if IsValidTigHash(r.URL.Path) {
-				WriteVolatile(w,r, body)
+				WriteVolatile(w, r, body)
 			} else {
 				WriteNonVolatile(w, r, body)
 			}
@@ -156,24 +197,33 @@ func Setup() {
 	})
 }
 
+func IsTerminating(start time.Time) bool {
+	return time.Now().After(start.Add(lifetime).Add(-cleanup))
+}
+
 func ReadStore(w http.ResponseWriter, r *http.Request) {
+	mimeType := r.URL.Query().Get("Content-Type")
+	if mimeType != "" {
+		w.Header().Set("Content-Type", mimeType)
+	} else {
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+	status := ReadStoreBuffer(w, r)
+	if status != http.StatusOK {
+		w.WriteHeader(status)
+	}
+}
+
+func ReadStoreBuffer(w io.Writer, r *http.Request) int {
 	if !IsValidTigHash(r.URL.Path) {
-		w.WriteHeader(http.StatusExpectationFailed)
-		return
+		return http.StatusExpectationFailed
 	}
 	// Hashes are strong enough not to require an apikey TODO os.Link()
 	filePath := path.Join(root, r.URL.Path)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		QuantumGradeError()
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	mimeType := r.URL.Query().Get("Content-Type")
-	if mimeType != "" {
-		w.Header().Set("Content-Type", mimeType)
-	} else {
-		w.Header().Set("Content-Type", "application/octet-stream")
+		return http.StatusNotFound
 	}
 
 	if r.URL.Query().Get("burst") == "1" {
@@ -188,6 +238,7 @@ func ReadStore(w http.ResponseWriter, r *http.Request) {
 		NoIssueWrite(w.Write(data))
 		MarkAsUsed(r, filePath)
 	}
+	return http.StatusOK
 }
 
 func MarkAsUsed(r *http.Request, fileName string) {
@@ -358,7 +409,7 @@ func IsDistributedCall(w http.ResponseWriter, r *http.Request) bool {
 	return false
 }
 
-func DistributedAddress(w http.ResponseWriter, r *http.Request, body []byte, address string) (string, string) {
+func DistributedAddress(w http.ResponseWriter, r *http.Request, body []byte, address string) (string, string, string) {
 	u, _ := url.Parse(r.URL.String())
 	_, err := os.Stat("/etc/ssl/tig.key")
 	if err == nil {
@@ -376,7 +427,10 @@ func DistributedAddress(w http.ResponseWriter, r *http.Request, body []byte, add
 		shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
 		u.Path = "/" + shortName
 	}
-	return u.String(), forwardAddress
+	verifyAddress := u.String()
+	u.Path = "/"
+	rootAddress := u.String()
+	return verifyAddress, forwardAddress, rootAddress
 }
 
 func DistributedCheck(w http.ResponseWriter, r *http.Request, address string) bool {
@@ -402,13 +456,13 @@ func DistributedCheck(w http.ResponseWriter, r *http.Request, address string) bo
 	return true
 }
 
-func DistributedCall(w http.ResponseWriter, r *http.Request, body []byte, address string) bool {
+func DistributedCall(w http.ResponseWriter, r *http.Request, method string, body []byte, address string) bool {
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
-	req, err := http.NewRequest(strings.ToUpper(r.Method), address, bytes.NewBuffer(body))
+	req, err := http.NewRequest(method, address, bytes.NewBuffer(body))
 	if err != nil {
 		return false
 	}
