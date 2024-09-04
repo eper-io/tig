@@ -7,6 +7,8 @@
 # You should have received a copy of the CC0 Public Domain Dedication along with this document.
 # If not, see https://creativecommons.org/publicdomain/zero/1.0/legalcode.
 
+# This script will commit the current codebase to a tig server.
+# It also returns an example, how to run it as a golang application.
 # Usage:
 # DATAGET=https://www.botanical23.com DATASET=https://www.botanical23.com ./documentation/commit.sh
 
