@@ -310,7 +310,6 @@ spec:
       labels:
         app: tig-app
     spec:
-      restartPolicy: Always
       containers:
       - name: tig-app
         image: nginx
