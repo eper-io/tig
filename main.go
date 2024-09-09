@@ -33,11 +33,12 @@ import (
 //10 minute is a good valve for demos, 1 GBps is a common cloud bandwidth.
 var root = "/data"
 var cleanup = 10 * time.Minute
-var lifetime = time.Duration(0)
+//var lifetime = time.Duration(0)
 const MaxFileSize = 128 * 1024 * 1024
 var cluster = "localhost"
 var ddosProtection sync.Mutex
 var instance = fmt.Sprintf("%d", time.Now().UnixNano()+rand.Int63())
+const distributedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
 
 func main() {
 	_, err := os.Stat(root)
@@ -66,77 +67,96 @@ func Setup() {
 			DelayDelete(filePath)
 		}
 	}
-	var start = time.Now()
-	if lifetime != 0 {
-		go func() {
-			running := true
-			for {
-				time.Sleep(lifetime / 100)
-				terminating := IsTerminating(start)
-				if running && terminating {
-					running = false
-					fmt.Println("terminating started after ", lifetime-cleanup)
-				}
-				terminated := time.Now().After(start.Add(lifetime + 1 * time.Second))
-				if terminated {
-					fmt.Println("terminating after ", lifetime)
-					os.Exit(0)
-				}
-			}
-		}()
-	}
+	//var start = time.Now()
+	//if lifetime != 0 {
+	//	go func() {
+	//		running := true
+	//		for {
+	//			time.Sleep(lifetime / 100)
+	//			terminating := IsTerminating(start)
+	//			if running && terminating {
+	//				running = false
+	//				fmt.Println("terminating started after ", lifetime-cleanup)
+	//			}
+	//			terminated := time.Now().After(start.Add(lifetime + 1 * time.Second))
+	//			if terminated {
+	//				fmt.Println("terminating after ", lifetime)
+	//				os.Exit(0)
+	//			}
+	//		}
+	//	}()
+	//}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "..") || strings.HasPrefix(r.URL.Path, "./") {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if cluster != "localhost" && IsDistributedLocalCall(w, r) {
-			w.WriteHeader(http.StatusLoopDetected)
-			return
-		}
+		//if cluster != "localhost" && IsDistributedLocalCall(w, r) {
+		//	w.WriteHeader(http.StatusLoopDetected)
+		//	return
+		//}
 		body := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
-		if cluster != "localhost" && !IsDistributedCall(w, r) {
+		if body == nil {
+			body = []byte{}
+		}
+		bodyHash := fmt.Sprintf("%x.tig", sha256.Sum256(body))
+		if cluster != "localhost" && !IsCallRouted(w, r) {
 			// UDP multicast is limited on K8S. We can use a headless service instead.
 			remoteAddress := ""
 			replicaAddress := ""
+			//terminating := IsTerminating(start)
 			var wg sync.WaitGroup
 			list, _ := net.LookupHost(cluster)
-			terminating := IsTerminating(start)
-			for _, v := range list {
+			w.Header().Set(cluster, "tig-cluster")
+			w.Header().Set(cluster, "tig-cluster")
+			for _, address := range list {
+				verifyAddress, rootAddress, forwardAddress := DistributedAddress(r.Method, r.URL.Path, bodyHash, address)
+				w.Header().Set("tig-shard-" + address, verifyAddress)
 				wg.Add(1)
-				go func(_w http.ResponseWriter, _r *http.Request, address string) {
-					verifyAddress, forwardAddress, rootAddress := DistributedAddress(_w, _r, body, address)
-					if DistributedCheck(_w, _r, verifyAddress) {
+				go func(verifyAddress, forwardAddress, rootAddress string) {
+					if DistributedCheck(verifyAddress) {
+						// TODO this fails
 						remoteAddress = forwardAddress
+						w.Header().Set("tig-shard-selected-" + address, verifyAddress)
 					}
-					if terminating && replicaAddress == "" {
-						if DistributedCheck(_w, _r, rootAddress) {
-							replicaAddress = forwardAddress
+					if replicaAddress == "" {
+						if DistributedCheck(rootAddress) {
+							replicaAddress = remoteAddress
 						}
+						w.Header().Set("tig-shard-replica-" + address, verifyAddress)
 					}
+					//if terminating && replicaAddress == "" {
+					//	if DistributedCheck(_w, _r, rootAddress) {
+					//		replicaAddress = forwardAddress
+					//	}
+					//}
 					wg.Done()
-				}(w, r, v)
+				}(verifyAddress, forwardAddress, rootAddress)
 			}
 			wg.Wait()
 			if remoteAddress != "" {
+				w.Header().Set(remoteAddress, "tig-select")
 				DistributedCall(w, r, r.Method, body, remoteAddress)
 				return
 			}
-			terminatingLocalNode := terminating && replicaAddress != ""
-			if terminatingLocalNode {
-				remoteAddress = replicaAddress
-				method := strings.ToUpper(r.Method)
-				if method == "GET" || method == "HEAD" {
-					x := bytes.NewBuffer([]byte{})
-					ReadStoreBuffer(x, r)
-					body = x.Bytes()
-					DistributedCall(w, r, "PUT", body, remoteAddress)
-				}
-				if method != "DELETE" {
-					DistributedCall(w, r, r.Method, body, remoteAddress)
-					return
-				}
+			if replicaAddress != "" {
+				w.Header().Set(replicaAddress, "tig-replica")
 			}
+			//terminatingLocalNode := terminating && replicaAddress != ""
+			//if terminatingLocalNode {
+			//	remoteAddress = replicaAddress
+			//	method := strings.ToUpper(r.Method)
+			//	if method == "GET" || method == "HEAD" {
+			//		x := bytes.NewBuffer([]byte{})
+			//		ReadStoreBuffer(x, r)
+			//		body = x.Bytes()
+			//		DistributedCall(w, r, "PUT", body, remoteAddress)
+			//	}
+			//	if method != "DELETE" {
+			//		DistributedCall(w, r, r.Method, body, remoteAddress)
+			//		return
+			//	}
+			//}
 		}
 
 		if r.Method == "PUT" || r.Method == "POST" {
@@ -198,7 +218,7 @@ func Setup() {
 }
 
 func IsTerminating(start time.Time) bool {
-	return time.Now().After(start.Add(lifetime).Add(-cleanup))
+	return false //time.Now().After(start.Add(lifetime).Add(-cleanup))
 }
 
 func ReadStore(w http.ResponseWriter, r *http.Request) {
@@ -208,6 +228,9 @@ func ReadStore(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Header().Set("Content-Type", "application/octet-stream")
 	}
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, post-check=0, pre-check=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	status := ReadStoreBuffer(w, r)
 	if status != http.StatusOK {
 		w.WriteHeader(status)
@@ -269,6 +292,9 @@ func ListStore(w http.ResponseWriter, r *http.Request) {
 		// Disallow this on temporary tig stores w/o apikey
 		return
 	}
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, post-check=0, pre-check=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	// TODO Audit this on long-term stores
 	f, _ := os.ReadDir(root)
 	// Newest file first
@@ -394,23 +420,23 @@ func WriteNonVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 
 func IsDistributedLocalCall(w http.ResponseWriter, r *http.Request) bool {
 	u, _ := url.Parse(r.URL.String())
-	if strings.ToUpper(r.Method) == "HEAD" && u.Query().Get("09E3F5F0-1D87-4B54-B57D-8D046D001942") == instance {
+	if strings.ToUpper(r.Method) == "HEAD" && u.Query().Get(distributedCall) == instance {
 		return true
 	}
 	return false
 }
 
-func IsDistributedCall(w http.ResponseWriter, r *http.Request) bool {
+func IsCallRouted(w http.ResponseWriter, r *http.Request) bool {
 	u, _ := url.Parse(r.URL.String())
 	// TODO Forward all calls at teardown time
-	if u.Query().Get("09E3F5F0-1D87-4B54-B57D-8D046D001942") != "" {
+	if u.Query().Get(distributedCall) != "" {
 		return true
 	}
 	return false
 }
 
-func DistributedAddress(w http.ResponseWriter, r *http.Request, body []byte, address string) (string, string, string) {
-	u, _ := url.Parse(r.URL.String())
+func DistributedAddress(method, callPath, bodyHash, address string) (string, string, string) {
+	u := url.URL{Path: callPath}
 	_, err := os.Stat("/etc/ssl/tig.key")
 	if err == nil {
 		u.Scheme = "https"
@@ -420,20 +446,19 @@ func DistributedAddress(w http.ResponseWriter, r *http.Request, body []byte, add
 		u.Host = address + ":7777"
 	}
 	q := u.Query()
-	q.Add("09E3F5F0-1D87-4B54-B57D-8D046D001942", instance)
+	q.Add(distributedCall, instance)
 	u.RawQuery = q.Encode()
 	forwardAddress := u.String()
-	if (strings.ToUpper(r.Method) == "PUT" || strings.ToUpper(r.Method) == "POST") && (u.RawPath == "" || u.RawPath == "/") {
-		shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
-		u.Path = "/" + shortName
+	if (strings.ToUpper(method) == "PUT" || strings.ToUpper(method) == "POST") && (callPath == "" || callPath == "/") {
+		u.Path = "/" + bodyHash
 	}
 	verifyAddress := u.String()
 	u.Path = "/"
 	rootAddress := u.String()
-	return verifyAddress, forwardAddress, rootAddress
+	return verifyAddress, rootAddress, forwardAddress
 }
 
-func DistributedCheck(w http.ResponseWriter, r *http.Request, address string) bool {
+func DistributedCheck(address string) bool {
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},

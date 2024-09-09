@@ -40,3 +40,87 @@ cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET
 cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*'%20%7C%20sudo%20bash >>$IMPLEMENTATION/tig.log
 echo >>$IMPLEMENTATION/tig.log
 
+export DOCKERCMD='curl '$DATAGET$(cat /tmp/launcher.txt)'|bash'
+cat <<EOF | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*|./kubectl%20apply%20-f-%20'
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tig-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tig-app
+  template:
+    metadata:
+      labels:
+        app: tig-app
+    spec:
+      containers:
+      - name: www-tig-app
+        image: golang:1.19.3
+        command: ["/bin/sh"]
+        args: ["-c", "$DOCKERCMD"]
+        ports:
+        - containerPort: 443
+
+---
+
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: tig-app
+spec:
+  type: LoadBalancer
+  selector:
+    app: tig-app
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 443
+
+---
+
+# Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: tig-app-headless
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: tig-app
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 443
+
+---
+
+# Ingress for secure tig service
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: https-tig-app
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  rules:
+  - host: www.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: tig-app
+            port:
+              number: 443
+EOF

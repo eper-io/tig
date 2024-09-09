@@ -311,10 +311,6 @@ spec:
         app: tig-app
     spec:
       containers:
-      - name: tig-app
-        image: nginx
-        ports:
-        - containerPort: 80 
       - name: www-tig-app
         image: golang:1.19.3
         command: ["/bin/sh"]
@@ -338,10 +334,6 @@ spec:
       protocol: TCP
       port: 443
       targetPort: 443
-    - name: http
-      protocol: TCP
-      port: 80
-      targetPort: 80
 
 ---
 
@@ -360,26 +352,6 @@ spec:
       protocol: TCP
       port: 443
       targetPort: 443
-
----
-
-# Ingress for redirects
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: tig-app
-spec:
-  rules:
-  - host: tig.com
-    http:
-      paths:
-      - pathType: Prefix
-        path: "/"
-        backend:
-          service:
-            name: tig-app
-            port:
-              number: 80
 
 ---
 
