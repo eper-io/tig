@@ -33,12 +33,14 @@ import (
 //10 minute is a good valve for demos, 1 GBps is a common cloud bandwidth.
 var root = "/data"
 var cleanup = 10 * time.Minute
-//var lifetime = time.Duration(0)
 const MaxFileSize = 128 * 1024 * 1024
 var cluster = "localhost"
 var ddosProtection sync.Mutex
 var instance = fmt.Sprintf("%d", time.Now().UnixNano()+rand.Int63())
 const distributedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
+
+//var lifetime = time.Duration(0)
+//var endOfLifetime sync.Mutex
 
 func main() {
 	_, err := os.Stat(root)
@@ -67,34 +69,66 @@ func Setup() {
 			DelayDelete(filePath)
 		}
 	}
-	//var start = time.Now()
-	//if lifetime != 0 {
-	//	go func() {
-	//		running := true
-	//		for {
-	//			time.Sleep(lifetime / 100)
-	//			terminating := IsTerminating(start)
-	//			if running && terminating {
-	//				running = false
-	//				fmt.Println("terminating started after ", lifetime-cleanup)
-	//			}
-	//			terminated := time.Now().After(start.Add(lifetime + 1 * time.Second))
-	//			if terminated {
-	//				fmt.Println("terminating after ", lifetime)
-	//				os.Exit(0)
-	//			}
-	//		}
-	//	}()
-	//}
+	/*
+	var start = time.Now()
+	if lifetime != 0 {
+		go func() {
+			running := true
+			for {
+				time.Sleep(lifetime / 100)
+				terminating := time.Now().After(start.Add(lifetime))
+				if running && terminating {
+					endOfLifetime.Lock()
+					running = false
+					list, _ := os.ReadDir(root)
+					nodes, _ := net.LookupHost(cluster)
+
+					for _, v := range list {
+						if IsValidTigHash(v.Name()) {
+							bodyHash := v.Name()
+							remoteAddress := ""
+
+							//rand.Shuffle(len(nodes), func(i, j int) { nodes[i], nodes[j] = nodes[j], nodes[i] })
+							for _, clusterAddress := range nodes {
+								verifyAddress, _, forwardAddress := DistributedAddress(r, bodyHash, clusterAddress)
+								if DistributedCheck(verifyAddress) {
+									// Do not forward to this node
+									continue
+								}
+								remoteAddress = forwardAddress
+							}
+							if remoteAddress != "" {
+								filePath := path.Join(root, bodyHash)
+								file, _ := os.Open(filePath)
+								client := &http.Client{
+									Transport: &http.Transport{
+										TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+									},
+								}
+								req, _ := http.NewRequest("PUT", remoteAddress, file)
+								resp, _ := client.Do(req)
+								if resp != nil && resp.Body != nil{
+									_ = resp.Body.Close()
+								}
+							}
+						}
+					}
+					fmt.Println("terminating started after ", lifetime-cleanup)
+					endOfLifetime.Unlock()
+					fmt.Println("terminating after ", time.Now().Sub(start))
+					os.Exit(0)
+				}
+			}
+		}()
+	}
+	*/
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		//endOfLifetime.Lock()
+		//endOfLifetime.Unlock()
 		if strings.Contains(r.URL.Path, "..") || strings.HasPrefix(r.URL.Path, "./") {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		//if cluster != "localhost" && IsDistributedLocalCall(w, r) {
-		//	w.WriteHeader(http.StatusLoopDetected)
-		//	return
-		//}
 		body := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 		if body == nil {
 			body = []byte{}
@@ -104,58 +138,34 @@ func Setup() {
 			// UDP multicast is limited on K8S. We can use a headless service instead.
 			remoteAddress := ""
 			replicaAddress := ""
-			//terminating := IsTerminating(start)
 			var wg sync.WaitGroup
 			list, _ := net.LookupHost(cluster)
 			w.Header().Set(cluster, "tig-cluster")
 			for _, clusterAddress := range list {
 				verifyAddress, rootAddress, forwardAddress := DistributedAddress(r, bodyHash, clusterAddress)
-				w.Header().Set("tig-shard-" +clusterAddress, verifyAddress)
+				//w.Header().Set("tig-shard-" +clusterAddress, verifyAddress)
 				wg.Add(1)
 				go func(verifyAddress, forwardAddress, rootAddress string) {
 					if DistributedCheck(verifyAddress) {
 						// TODO this fails
 						remoteAddress = forwardAddress
-						w.Header().Set("tig-shard-selected-" +clusterAddress, verifyAddress)
+						//w.Header().Set("tig-shard-selected-" +clusterAddress, verifyAddress)
 					}
 					if replicaAddress == "" {
 						if DistributedCheck(rootAddress) {
 							replicaAddress = remoteAddress
 						}
-						w.Header().Set("tig-shard-replica-" +clusterAddress, verifyAddress)
+						//w.Header().Set("tig-shard-replica-" +clusterAddress, verifyAddress)
 					}
-					//if terminating && replicaAddress == "" {
-					//	if DistributedCheck(_w, _r, rootAddress) {
-					//		replicaAddress = forwardAddress
-					//	}
-					//}
 					wg.Done()
 				}(verifyAddress, forwardAddress, rootAddress)
 			}
 			wg.Wait()
 			if remoteAddress != "" {
-				w.Header().Set(remoteAddress, "tig-select")
+				//w.Header().Set(remoteAddress, "tig-select")
 				DistributedCall(w, r, r.Method, body, remoteAddress)
 				return
 			}
-			if replicaAddress != "" {
-				w.Header().Set(replicaAddress, "tig-replica")
-			}
-			//terminatingLocalNode := terminating && replicaAddress != ""
-			//if terminatingLocalNode {
-			//	remoteAddress = replicaAddress
-			//	method := strings.ToUpper(r.Method)
-			//	if method == "GET" || method == "HEAD" {
-			//		x := bytes.NewBuffer([]byte{})
-			//		ReadStoreBuffer(x, r)
-			//		body = x.Bytes()
-			//		DistributedCall(w, r, "PUT", body, remoteAddress)
-			//	}
-			//	if method != "DELETE" {
-			//		DistributedCall(w, r, r.Method, body, remoteAddress)
-			//		return
-			//	}
-			//}
 		}
 
 		if r.Method == "PUT" || r.Method == "POST" {
@@ -214,10 +224,6 @@ func Setup() {
 			}
 		}
 	})
-}
-
-func IsTerminating(start time.Time) bool {
-	return false //time.Now().After(start.Add(lifetime).Add(-cleanup))
 }
 
 func ReadStore(w http.ResponseWriter, r *http.Request) {
