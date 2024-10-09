@@ -108,22 +108,21 @@ func Setup() {
 			var wg sync.WaitGroup
 			list, _ := net.LookupHost(cluster)
 			w.Header().Set(cluster, "tig-cluster")
-			w.Header().Set(cluster, "tig-cluster")
-			for _, address := range list {
-				verifyAddress, rootAddress, forwardAddress := DistributedAddress(r.Method, r.URL.Path, bodyHash, address)
-				w.Header().Set("tig-shard-" + address, verifyAddress)
+			for _, clusterAddress := range list {
+				verifyAddress, rootAddress, forwardAddress := DistributedAddress(r, bodyHash, clusterAddress)
+				w.Header().Set("tig-shard-" +clusterAddress, verifyAddress)
 				wg.Add(1)
 				go func(verifyAddress, forwardAddress, rootAddress string) {
 					if DistributedCheck(verifyAddress) {
 						// TODO this fails
 						remoteAddress = forwardAddress
-						w.Header().Set("tig-shard-selected-" + address, verifyAddress)
+						w.Header().Set("tig-shard-selected-" +clusterAddress, verifyAddress)
 					}
 					if replicaAddress == "" {
 						if DistributedCheck(rootAddress) {
 							replicaAddress = remoteAddress
 						}
-						w.Header().Set("tig-shard-replica-" + address, verifyAddress)
+						w.Header().Set("tig-shard-replica-" +clusterAddress, verifyAddress)
 					}
 					//if terminating && replicaAddress == "" {
 					//	if DistributedCheck(_w, _r, rootAddress) {
@@ -435,21 +434,21 @@ func IsCallRouted(w http.ResponseWriter, r *http.Request) bool {
 	return false
 }
 
-func DistributedAddress(method, callPath, bodyHash, address string) (string, string, string) {
-	u := url.URL{Path: callPath}
+func DistributedAddress(r *http.Request, bodyHash, clusterAddress string) (string, string, string) {
+	u := url.URL{Path: r.URL.Path, RawQuery: r.URL.RawQuery}
 	_, err := os.Stat("/etc/ssl/tig.key")
 	if err == nil {
 		u.Scheme = "https"
-		u.Host = address + ":443"
+		u.Host = clusterAddress + ":443"
 	} else {
 		u.Scheme = "http"
-		u.Host = address + ":7777"
+		u.Host = clusterAddress + ":7777"
 	}
 	q := u.Query()
 	q.Add(distributedCall, instance)
 	u.RawQuery = q.Encode()
 	forwardAddress := u.String()
-	if (strings.ToUpper(method) == "PUT" || strings.ToUpper(method) == "POST") && (callPath == "" || callPath == "/") {
+	if (strings.ToUpper(r.Method) == "PUT" || strings.ToUpper(r.Method) == "POST") && (r.URL.Path == "" || r.URL.Path == "/") {
 		u.Path = "/" + bodyHash
 	}
 	verifyAddress := u.String()
