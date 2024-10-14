@@ -21,7 +21,7 @@ test -f $IMPLEMENTATION/certificate.crt && test -f $IMPLEMENTATION/ca_bundle.crt
 echo >>/tmp/tig.sh
 echo cd /go/src >>/tmp/tig.sh
 echo >>/tmp/tig.sh
-tar --exclude .git -c . | curl --data-binary @- -X POST $DATASET'&format=*' >/tmp/code.txt
+tar --exclude .git --exclude .implementation --exclude .idea -c . | curl --data-binary @- -X POST $DATASET'&format=*' >/tmp/code.txt
 echo curl $DATAGET$(cat /tmp/code.txt)" | tar -x" >>/tmp/tig.sh
 echo go run main.go >>/tmp/tig.sh
 cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=*' >/tmp/launcher.txt
