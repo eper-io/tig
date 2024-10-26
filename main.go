@@ -129,6 +129,7 @@ func Setup() {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		defer func() {_ = r.Body.Close()}()
 		body := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 		if body == nil {
 			body = []byte{}
