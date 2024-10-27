@@ -41,6 +41,7 @@ cat /tmp/tig.sh | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET
 echo >>$IMPLEMENTATION/tig.log
 
 export DOCKERCMD='curl '$DATAGET$(cat /tmp/launcher.txt)'|bash'
+echo args: ["-c", "$DOCKERCMD"] >>$IMPLEMENTATION/tig.log
 cat <<EOF | curl -X PUT --data-binary @- $DATASET'&format=curl%20'$DATAGET'*|./kubectl%20apply%20-f-%20'
 # Deployment
 apiVersion: apps/v1
