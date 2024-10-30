@@ -62,13 +62,24 @@ func main() {
 
 func Setup() {
 	// Schedule the cleanup of any existing files
-	list, _ := os.ReadDir(root)
-	for _, v := range list {
-		if IsValidTigHash(v.Name()) {
-			filePath := path.Join(root, v.Name())
-			DelayDelete(filePath)
+	go func() {
+		for {
+			now := time.Now()
+			list, _ := os.ReadDir(root)
+			for _, v := range list {
+				if IsValidTigHash("/"+v.Name()) {
+					filePath := path.Join(root, v.Name())
+					stat, _ := os.Stat(filePath)
+					if stat != nil {
+						if stat.ModTime().Add(cleanup).Before(now) {
+							_ = os.Remove(filePath)
+						}
+					}
+				}
+			}
+			time.Sleep(cleanup)
 		}
-	}
+	}()
 	/*
 	var start = time.Now()
 	if lifetime != 0 {
@@ -129,7 +140,7 @@ func Setup() {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		defer func() {_ = r.Body.Close()}()
+		defer r.Body.Close()
 		body := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 		if body == nil {
 			body = []byte{}
@@ -280,7 +291,6 @@ func MarkAsUsed(r *http.Request, fileName string) {
 		go func(fileName1 string) {
 			current := time.Now()
 			_ = os.Chtimes(fileName, current, current)
-			DelayDelete(fileName1)
 		}(fileName)
 	}
 
@@ -327,39 +337,9 @@ func ListStore(w http.ResponseWriter, r *http.Request) {
 func DeleteStore(w http.ResponseWriter, r *http.Request) bool {
 	if IsValidTigHash(r.URL.Path) {
 		filePath := path.Join(root, r.URL.Path)
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			QuantumGradeError()
-			w.WriteHeader(http.StatusNotFound)
-			return true
-		}
-		shortName := fmt.Sprintf("%x.tig", sha256.Sum256(data))
-		absolutePath := path.Join(root, shortName)
-		if absolutePath == filePath {
-			backup := filePath + ".deleted"
-			_ = os.Rename(filePath, backup)
-			DelayDelete(backup)
-		} else {
-			_ = os.Remove(filePath)
-		}
+		_ = os.Remove(filePath)
 	}
 	return false
-}
-
-func DelayDelete(filePath string) {
-	stat, _ := os.Stat(filePath)
-	if stat != nil {
-		go func(original os.FileInfo, backup1 string) {
-			time.Sleep(cleanup)
-			stat, _ := os.Stat(backup1)
-			if stat != nil {
-				if original.ModTime() == stat.ModTime() {
-					// This is still the same file or usage bit set.
-					_ = os.Remove(filePath)
-				}
-			}
-		}(stat, filePath)
-	}
 }
 
 func WriteVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
@@ -403,7 +383,6 @@ func WriteVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 	format := Nvl(r.URL.Query().Get("format"), "*")
 	relativePath := path.Join("/", shortName)
 	_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath))
-	DelayDelete(absolutePath)
 }
 
 func WriteNonVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
@@ -421,7 +400,6 @@ func WriteNonVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 	format := Nvl(r.URL.Query().Get("format"), "*")
 	relativePath := path.Join("/", shortName)
 	_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath))
-	DelayDelete(absolutePath)
 }
 
 func IsDistributedLocalCall(w http.ResponseWriter, r *http.Request) bool {
@@ -475,12 +453,10 @@ func DistributedCheck(address string) bool {
 		return false
 	}
 	resp, err := client.Do(req)
-	if err != nil {
+	if err != nil || resp.Body == nil {
 		return false
 	}
-	if resp.Body != nil {
-		_ = resp.Body.Close()
-	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return false
 	}
@@ -498,14 +474,12 @@ func DistributedCall(w http.ResponseWriter, r *http.Request, method string, body
 		return false
 	}
 	resp, err := client.Do(req)
-	if err != nil {
+	if err != nil || resp.Body == nil {
 		return false
 	}
 	w.WriteHeader(resp.StatusCode)
-	if resp.Body != nil {
-		_, _ = io.Copy(w, resp.Body)
-		_ = resp.Body.Close()
-	}
+	_, _ = io.Copy(w, resp.Body)
+	_ = resp.Body.Close()
 	return true
 }
 
