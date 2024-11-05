@@ -254,7 +254,7 @@ cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 
 - We forward requests to all active pods.
 
-## Design considerations
+## Strategy
 
 - Scheduling cleanups at startup covers migrations due to hardware upgrades.
 
@@ -281,6 +281,10 @@ cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 - Use a cluster of two nodes or more to implement cluster balancing.
 
 - The ever replacing dynamism of pods with lifetime makes the solution flexible and scalable.
+
+- The latest codebase is always at [https://gitlab.com/eper.io/tig](https://gitlab.com/eper.io/tig) to support multiple providers increasing the negotiation power of the community.
+
+- There is a mirror at [https://github.com/eper-io/tig](https://github.com/eper-io/tig)
 
 ## Kubernetes
 
