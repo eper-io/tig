@@ -380,4 +380,4 @@ spec:
 
 ## TODO
 
-- tig was actually an idea too quick. It is not really a `git` clone anymore. We could rename this to storage or even better route that reflects the behavior.
+- tig was actually an idea too quick. It is not really a `git` clone anymore. We could rename this to `storage` or even better `route` that reflects the behavior.
