@@ -377,3 +377,7 @@ spec:
             port: 
               number: 443
 ```
+
+## TODO
+
+- tig was actually an idea too quick. It is not really a `git` clone anymore. We could rename this to storage or even better route that reflects the behavior.
