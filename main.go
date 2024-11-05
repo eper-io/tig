@@ -39,8 +39,7 @@ var ddosProtection sync.Mutex
 var instance = fmt.Sprintf("%d", time.Now().UnixNano()+rand.Int63())
 const distributedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
 
-//var lifetime = time.Duration(0)
-//var endOfLifetime sync.Mutex
+var endOfLife = time.Now().Add(time.Duration(10*365*24*time.Hour))
 
 func main() {
 	_, err := os.Stat(root)
@@ -80,62 +79,7 @@ func Setup() {
 			time.Sleep(cleanup)
 		}
 	}()
-	/*
-	var start = time.Now()
-	if lifetime != 0 {
-		go func() {
-			running := true
-			for {
-				time.Sleep(lifetime / 100)
-				terminating := time.Now().After(start.Add(lifetime))
-				if running && terminating {
-					endOfLifetime.Lock()
-					running = false
-					list, _ := os.ReadDir(root)
-					nodes, _ := net.LookupHost(cluster)
-
-					for _, v := range list {
-						if IsValidTigHash(v.Name()) {
-							bodyHash := v.Name()
-							remoteAddress := ""
-
-							//rand.Shuffle(len(nodes), func(i, j int) { nodes[i], nodes[j] = nodes[j], nodes[i] })
-							for _, clusterAddress := range nodes {
-								verifyAddress, _, forwardAddress := DistributedAddress(r, bodyHash, clusterAddress)
-								if DistributedCheck(verifyAddress) {
-									// Do not forward to this node
-									continue
-								}
-								remoteAddress = forwardAddress
-							}
-							if remoteAddress != "" {
-								filePath := path.Join(root, bodyHash)
-								file, _ := os.Open(filePath)
-								client := &http.Client{
-									Transport: &http.Transport{
-										TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-									},
-								}
-								req, _ := http.NewRequest("PUT", remoteAddress, file)
-								resp, _ := client.Do(req)
-								if resp != nil && resp.Body != nil{
-									_ = resp.Body.Close()
-								}
-							}
-						}
-					}
-					fmt.Println("terminating started after ", lifetime-cleanup)
-					endOfLifetime.Unlock()
-					fmt.Println("terminating after ", time.Now().Sub(start))
-					os.Exit(0)
-				}
-			}
-		}()
-	}
-	*/
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		//endOfLifetime.Lock()
-		//endOfLifetime.Unlock()
 		if strings.Contains(r.URL.Path, "..") || strings.HasPrefix(r.URL.Path, "./") {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -155,26 +99,27 @@ func Setup() {
 			w.Header().Set(cluster, "tig-cluster")
 			for _, clusterAddress := range list {
 				verifyAddress, rootAddress, forwardAddress := DistributedAddress(r, bodyHash, clusterAddress)
-				//w.Header().Set("tig-shard-" +clusterAddress, verifyAddress)
 				wg.Add(1)
 				go func(verifyAddress, forwardAddress, rootAddress string) {
 					if DistributedCheck(verifyAddress) {
-						// TODO this fails
 						remoteAddress = forwardAddress
-						//w.Header().Set("tig-shard-selected-" +clusterAddress, verifyAddress)
 					}
 					if replicaAddress == "" {
 						if DistributedCheck(rootAddress) {
 							replicaAddress = remoteAddress
 						}
-						//w.Header().Set("tig-shard-replica-" +clusterAddress, verifyAddress)
 					}
 					wg.Done()
 				}(verifyAddress, forwardAddress, rootAddress)
 			}
 			wg.Wait()
+			if endOfLife.Before(time.Now()) && remoteAddress == "" {
+				replicaAddress = ForwardStore(w, r, replicaAddress)
+				if replicaAddress != "" {
+					remoteAddress = replicaAddress
+				}
+			}
 			if remoteAddress != "" {
-				//w.Header().Set(remoteAddress, "tig-select")
 				DistributedCall(w, r, r.Method, body, remoteAddress)
 				return
 			}
@@ -184,7 +129,7 @@ func Setup() {
 			if r.URL.Path == "/kv" {
 				// We allow key value pairs for limited use of persistent checkpoints, commits, and tags
 				shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
-				_, _ = io.WriteString(w, "/" + shortName)
+				_, _ = io.WriteString(w, "/"+shortName)
 				return
 			}
 			if QuantumGradeAuthenticationFailed(w, r) {
@@ -236,6 +181,35 @@ func Setup() {
 			}
 		}
 	})
+}
+
+func ForwardStore(w http.ResponseWriter, r *http.Request, replicaAddress string) (remoteAddress string) {
+	remoteAddress = ""
+	if !IsValidTigHash(r.URL.Path) {
+		w.WriteHeader(http.StatusExpectationFailed)
+		return
+	}
+	localStore := path.Join(root, r.URL.Path)
+	_, err := os.Stat(localStore)
+	if err == nil {
+		// Local data
+		localBytes, _ := os.ReadFile(localStore)
+		if localBytes != nil {
+			remoteAddress = replicaAddress
+			client := &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				},
+			}
+			req, _ := http.NewRequest("PUT", remoteAddress, bytes.NewBuffer(localBytes))
+			resp, _ := client.Do(req)
+			if resp != nil && resp.Body != nil {
+				_ = resp.Body.Close()
+			}
+		}
+		_ = os.Remove(localStore)
+	}
+	return remoteAddress
 }
 
 func ReadStore(w http.ResponseWriter, r *http.Request) {
