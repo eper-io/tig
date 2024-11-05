@@ -86,7 +86,8 @@ func Setup() {
 		}
 	}()
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "..") || strings.HasPrefix(r.URL.Path, "./") {
+		if strings.Contains(r.URL.Path, "..") || strings.Contains(r.URL.Path, "./") {
+			// This is stricter than path.Clear reducing complexity.
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -191,7 +192,7 @@ func Setup() {
 
 func ForwardStore(w http.ResponseWriter, r *http.Request, replicaAddress string) (remoteAddress string) {
 	remoteAddress = ""
-	if !IsValidTigHash(r.URL.Path) {
+	if !IsValidTigHash(r.URL.Path) || replicaAddress == "" {
 		w.WriteHeader(http.StatusExpectationFailed)
 		return
 	}
@@ -326,6 +327,9 @@ func WriteVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 	if !IsValidTigHash(r.URL.Path) {
 		return
 	}
+	if len(r.URL.Path) <= 1 {
+		return
+	}
 	// We allow key value pairs for limited use of checkpoints, commits, and persistence tags
 	shortName := r.URL.Path[1:]
 	absolutePath := path.Join(root, shortName)
@@ -433,7 +437,7 @@ func DistributedCheck(address string) bool {
 		return false
 	}
 	resp, err := client.Do(req)
-	if err != nil || resp.Body == nil {
+	if err != nil || resp == nil || resp.Body == nil {
 		return false
 	}
 	defer resp.Body.Close()
@@ -454,7 +458,7 @@ func DistributedCall(w http.ResponseWriter, r *http.Request, method string, body
 		return false
 	}
 	resp, err := client.Do(req)
-	if err != nil || resp.Body == nil {
+	if err != nil || resp == nil || resp.Body == nil {
 		return false
 	}
 	w.WriteHeader(resp.StatusCode)
