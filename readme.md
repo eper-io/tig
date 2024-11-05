@@ -32,6 +32,8 @@ The design considerations were the following.
 - Streaming with smaller blocks allows prefetching content in advance for reliability and security.
 - We require some clustering behavior with any replicas handled in applications.
 - Clustering is balanced, when hashes identify the blocks.
+- We also released first under Creative Commons 0 license. This is better suitable for research organizations focused on patents.
+- We are also considering releasing it under the Apache license. This is better for SaaS providers focused on a robust codebase.
 
 ## Security
 

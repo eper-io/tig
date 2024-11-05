@@ -38,10 +38,16 @@ var cluster = "localhost"
 var ddosProtection sync.Mutex
 var instance = fmt.Sprintf("%d", time.Now().UnixNano()+rand.Int63())
 const distributedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
-
+// Practically infinite
 var endOfLife = time.Now().Add(time.Duration(10*365*24*time.Hour))
 
 func main() {
+	if cluster != "localhost" {
+		// Shuffle containers started in parallel
+		rand.Seed(100)
+		endOfLife = endOfLife.Add(time.Duration(rand.Intn(5)) * cleanup)
+	}
+
 	_, err := os.Stat(root)
 	if err != nil {
 		// /tmp as fallback helps with cleanup
