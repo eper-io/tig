@@ -89,10 +89,13 @@ func Setup() {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		defer r.Body.Close()
-		body := NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
-		if body == nil {
-			body = []byte{}
+		body := []byte{}
+		if r.Body != nil {
+			body = NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
+			if body == nil {
+				body = []byte{}
+			}
+			_ = r.Body.Close()
 		}
 		bodyHash := fmt.Sprintf("%x.tig", sha256.Sum256(body))
 		if cluster != "localhost" && !IsCallRouted(w, r) {
