@@ -33,12 +33,14 @@ import (
 //10 minute is a good valve for demos, 1 GBps is a common cloud bandwidth.
 var root = "/data"
 var cleanup = 10 * time.Minute
+const MaxMemSize = 256 * 1024 * 1024
 const MaxFileSize = 128 * 1024 * 1024
 var cluster = "localhost"
 var ddosProtection sync.Mutex
 var instance = fmt.Sprintf("%d", time.Now().UnixNano()+rand.Int63())
 const routedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
 var endOfLife = time.Now().Add(time.Duration(10*365*24*time.Hour))
+var semaphore = make(chan struct{}, MaxMemSize / MaxFileSize)
 
 func main() {
 	if cluster != "localhost" {
@@ -84,6 +86,8 @@ func Setup() {
 		}
 	}()
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		semaphore <- struct{}{}
+		defer func() { <-semaphore }()
 		if strings.Contains(r.URL.Path, "..") || strings.Contains(r.URL.Path, "./") {
 			// This is stricter than path.Clear reducing complexity.
 			w.WriteHeader(http.StatusBadRequest)
