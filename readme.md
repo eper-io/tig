@@ -33,7 +33,8 @@ The design considerations were the following.
 - We require some clustering behavior with any replicas handled in applications.
 - Clustering is balanced, when hashes identify the blocks.
 - We also released first under Creative Commons 0 license. This is better suitable for research organizations focused on patents.
-- We are also considering releasing it under the Apache license. This is better for SaaS providers focused on a robust codebase.
+- Creative Commons also sounds like Civilian Control to us.
+- We are also considering releasing tig under the Apache license. This is better for SaaS providers focused on a robust codebase.
 
 ## Security
 
@@ -177,6 +178,23 @@ Bursts are similar to DRAM bursts or scatter gather DMA, when data is fetched an
 abcdefghi
 ```
 
+## Synchronization
+
+We rely on file system level synchronization such as O_EXCL. We do not use processor test and set (TAS) or (XCHG) considered expensive for memory buses on shared cores.
+Setting a variable only, if it was not set is good enough for synchronization w/ retry for most use cases such as creating a mutex/semaphore for lambda function runs.
+
+The following call will only return the path, if we successfully set the specified file used as an exclusive slot. It will return empty, if it is used.
+
+```
+echo 123 | curl -X 'PUT' --data-binary @- 'http://127.0.0.1/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig?setifnot=1'
+```
+
+The following call will append to the file using file system level synchronization just like `>>log.txt`. This helps with logs and traces. Use a random hash path for proper behavior.
+
+```
+echo We added one more file. | curl -X 'PUT' --data-binary @- 'http://127.0.0.1/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig?append=1'
+```
+
 ## Storage directory suggestions:
 
 `/data` is the default location that can be created before startup.
@@ -251,6 +269,8 @@ cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 - Querying is done using DNS. This can be a list of A or CNAME records.
 
 - A K8S headless service can expose the addresses of all active pods.
+
+- A K8S headless service has a different local .internal name. We use InsecureSkipVerify=true for these cluster local calls over the external TLS API.
 
 - We forward requests to all active pods.
 

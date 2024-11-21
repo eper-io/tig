@@ -37,21 +37,19 @@ const MaxFileSize = 128 * 1024 * 1024
 var cluster = "localhost"
 var ddosProtection sync.Mutex
 var instance = fmt.Sprintf("%d", time.Now().UnixNano()+rand.Int63())
-const distributedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
-// Practically infinite
+const routedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
 var endOfLife = time.Now().Add(time.Duration(10*365*24*time.Hour))
 
 func main() {
 	if cluster != "localhost" {
-		// Shuffle containers started in parallel
 		rand.Seed(100)
-		endOfLife = endOfLife.Add(time.Duration(rand.Intn(5)) * cleanup)
+		shuffleParallel := time.Duration(rand.Intn(5)) * cleanup
+		endOfLife = endOfLife.Add(shuffleParallel)
 	}
-
 	_, err := os.Stat(root)
 	if err != nil {
-		// /tmp as fallback helps with cleanup
-		root = "/tmp"
+		fallback := "/tmp"
+		root = fallback
 	}
 	Setup()
 	_, err = os.Stat("/etc/ssl/tig.key")
@@ -66,7 +64,6 @@ func main() {
 }
 
 func Setup() {
-	// Schedule the cleanup of any existing files
 	go func() {
 		for {
 			now := time.Now()
@@ -81,6 +78,7 @@ func Setup() {
 						}
 					}
 				}
+				time.Sleep(cleanup / time.Duration(len(list)) / 10)
 			}
 			time.Sleep(cleanup)
 		}
@@ -142,6 +140,7 @@ func Setup() {
 			if QuantumGradeAuthenticationFailed(w, r) {
 				return
 			}
+			w.WriteHeader(http.StatusOK)
 			if IsValidTigHash(r.URL.Path) {
 				WriteVolatile(w, r, body)
 			} else {
@@ -171,6 +170,7 @@ func Setup() {
 			if err != nil {
 				QuantumGradeError()
 				w.WriteHeader(http.StatusNotFound)
+				return
 			}
 			QuantumGradeSuccess()
 			w.WriteHeader(http.StatusOK)
@@ -359,8 +359,6 @@ func WriteVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 		_ = file.Close()
 	} else {
 		if setIfNot {
-			// We do not use test and set (TAS) considered expensive such as (XCHG).
-			// Setting if not set is good enough for synchronization w/ retry.
 			return
 		}
 	}
@@ -370,11 +368,11 @@ func WriteVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 }
 
 func WriteNonVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
-	shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
-	absolutePath := path.Join(root, shortName)
 	if len(r.URL.Path) > 1 || r.URL.Path != "/" {
 		return
 	}
+	shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
+	absolutePath := path.Join(root, shortName)
 	flags := os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_EXCL
 	file, err := os.OpenFile(absolutePath, flags, 0600)
 	if err == nil {
@@ -386,21 +384,9 @@ func WriteNonVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 	_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath))
 }
 
-func IsDistributedLocalCall(w http.ResponseWriter, r *http.Request) bool {
-	u, _ := url.Parse(r.URL.String())
-	if strings.ToUpper(r.Method) == "HEAD" && u.Query().Get(distributedCall) == instance {
-		return true
-	}
-	return false
-}
-
 func IsCallRouted(w http.ResponseWriter, r *http.Request) bool {
 	u, _ := url.Parse(r.URL.String())
-	// TODO Forward all calls at teardown time
-	if u.Query().Get(distributedCall) != "" {
-		return true
-	}
-	return false
+	return u.Query().Get(routedCall) != ""
 }
 
 func DistributedAddress(r *http.Request, bodyHash, clusterAddress string) (string, string, string) {
@@ -414,7 +400,7 @@ func DistributedAddress(r *http.Request, bodyHash, clusterAddress string) (strin
 		u.Host = clusterAddress + ":7777"
 	}
 	q := u.Query()
-	q.Add(distributedCall, instance)
+	q.Add(routedCall, instance)
 	u.RawQuery = q.Encode()
 	forwardAddress := u.String()
 	if (strings.ToUpper(r.Method) == "PUT" || strings.ToUpper(r.Method) == "POST") && (r.URL.Path == "" || r.URL.Path == "/") {
@@ -483,9 +469,6 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 	}
 	apiKey := r.URL.Query().Get("apikey")
 	if referenceApiKey != apiKey {
-		// Authentication: Plain old safe deposit box logic with pin codes covering quantum computers.
-		// Authorization: What do you do, when fraudsters flood you with requests? Wait a sec ...
-		// Encryption: We still rely on your OS provided TLS library .
 		QuantumGradeError()
 		w.WriteHeader(http.StatusUnauthorized)
 		return true
@@ -496,16 +479,24 @@ func QuantumGradeAuthenticationFailed(w http.ResponseWriter, r *http.Request) bo
 }
 
 func QuantumGradeSuccess() {
-	time.Sleep(6 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 }
 
 func QuantumGradeError() {
+	// Authentication: Plain old safe deposit box logic with pin codes covering quantum computers.
+	// Authorization: What do you do, when fraudsters flood you with requests? Wait a sec ...
+	// Encryption: We still rely on your OS provided TLS library .
+	// This is still not optimal allowing attackers to use memory with the default http implementation.
+	// Paid pro versions may use UDP.
 	ddosProtection.Lock()
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 	ddosProtection.Unlock()
+	time.Sleep(10 * time.Millisecond)
 }
 
 func NoIssueApi(buf []byte, err error) []byte {
+	// No issue checking assumes an os level fix of upstream errors.
+	// We do not really want to give attackers the chance to impact our logs.
 	if err != nil {
 		return []byte{}
 	}
