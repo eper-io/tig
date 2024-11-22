@@ -42,6 +42,7 @@ const routedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
 var endOfLife = time.Now().Add(time.Duration(10*365*24*time.Hour))
 // MaxMemSize / MaxFileSize
 var semaphore = make(chan int, MaxMemSize / MaxFileSize)
+var addLocalhost = true
 
 func main() {
 	if cluster != "localhost" {
@@ -109,6 +110,9 @@ func Setup() {
 			replicaAddress := ""
 			var wg sync.WaitGroup
 			list, _ := net.LookupHost(cluster)
+			if addLocalhost {
+				list = append(list, "127.0.0.1")
+			}
 			for _, clusterAddress := range list {
 				verifyAddress, rootAddress, forwardAddress := DistributedAddress(r, bodyHash, clusterAddress)
 				wg.Add(1)

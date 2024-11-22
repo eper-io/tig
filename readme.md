@@ -280,6 +280,10 @@ We achieved the minimum practical latency of sustained 13 ms on an Apple Mac Stu
 
 Better performance could be achieved by C or C++ LLM transformations, better dos handling and direct UDP implementation.
 
+```
+while true; do uuidgen | time curl http://127.0.0.1:7777`time curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777'`; done
+```
+
 ## Strategy
 
 - Scheduling cleanups at startup covers migrations due to hardware upgrades.
