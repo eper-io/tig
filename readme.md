@@ -274,6 +274,12 @@ cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 
 - We forward requests to all active pods.
 
+## Benchmark
+
+We achieved the minimum practical latency of sustained 13 ms on an Apple Mac Studio. This is not bad for a golang codebase.
+
+Better performance could be achieved by C or C++ LLM transformations, better dos handling and direct UDP implementation.
+
 ## Strategy
 
 - Scheduling cleanups at startup covers migrations due to hardware upgrades.
