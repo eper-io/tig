@@ -40,7 +40,8 @@ var ddosProtection sync.Mutex
 var instance = fmt.Sprintf("%d", time.Now().UnixNano()+rand.Int63())
 const routedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
 var endOfLife = time.Now().Add(time.Duration(10*365*24*time.Hour))
-var semaphore = make(chan struct{}, MaxMemSize / MaxFileSize)
+// MaxMemSize / MaxFileSize
+var semaphore = make(chan struct{}, 2)
 
 func main() {
 	if cluster != "localhost" {
