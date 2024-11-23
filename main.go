@@ -41,7 +41,7 @@ var instance = fmt.Sprintf("%d", time.Now().UnixNano()+rand.Int63())
 const routedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
 var endOfLife = time.Now().Add(time.Duration(10*365*24*time.Hour))
 // MaxMemSize / MaxFileSize
-var semaphore = make(chan int, MaxMemSize / MaxFileSize)
+var pool = make(chan []byte, MaxMemSize / MaxFileSize)
 var addLocalhost = false
 
 func main() {
@@ -68,6 +68,9 @@ func main() {
 }
 
 func Setup() {
+	for i := 0; i < MaxMemSize / MaxFileSize; i++ {
+		pool <- make([]byte, MaxFileSize)
+	}
 	go func() {
 		for {
 			now := time.Now()
@@ -88,14 +91,18 @@ func Setup() {
 		}
 	}()
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		semaphore <- 1
-		defer func() { <-semaphore }()
 		if strings.Contains(r.URL.Path, "..") || strings.Contains(r.URL.Path, "./") {
 			// This is stricter than path.Clear reducing complexity.
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		body := []byte{}
+		body := <-pool
+		defer func(a0 []byte) {
+			for i := range a0 {
+				a0[i] = 0
+			}
+			pool <- a0
+		}(body)
 		if r.Body != nil {
 			body = NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
 			if body == nil {
@@ -111,27 +118,21 @@ func Setup() {
 			if endOfLife.Before(time.Now()) {
 				replicaAddress = "replicating"
 			}
-			//var wg sync.WaitGroup
 			list, _ := net.LookupHost(cluster)
 			if addLocalhost {
 				list = append(list, "127.0.0.1")
 			}
 			for _, clusterAddress := range list {
 				verifyAddress, rootAddress, forwardAddress := DistributedAddress(r, bodyHash, clusterAddress)
-				//wg.Add(1)
-				//go func(verifyAddress, forwardAddress, rootAddress string) {
-					if DistributedCheck(verifyAddress) {
-						remoteAddress = forwardAddress
+				if DistributedCheck(verifyAddress) {
+					remoteAddress = forwardAddress
+				}
+				if replicaAddress == "replicating" {
+					if DistributedCheck(rootAddress) {
+						replicaAddress = remoteAddress
 					}
-					if replicaAddress == "replicating" {
-						if DistributedCheck(rootAddress) {
-							replicaAddress = remoteAddress
-						}
-					}
-					//wg.Done()
-				//}(verifyAddress, forwardAddress, rootAddress)
+				}
 			}
-			//wg.Wait()
 			if endOfLife.Before(time.Now()) && remoteAddress == "" {
 				replicaAddress = ForwardStore(w, r, replicaAddress)
 				if replicaAddress != "" {
