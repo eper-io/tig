@@ -72,12 +72,15 @@ You can use an API key for internal corporate networks to protect administrative
 - Governments can monitor the channel for security.
 - The code integrity of the corporate networks can be ensured better with traffic monitoring.
 - This integrity was the power of early DOS and Windows systems that partly made Microsoft so successful.
+- We eliminate external API calls to git and a necessary download of git binaries on each container.
+- There is no need of complex protocol binaries of git to check out. It is HTTP.
+- tig cannot force update a push like git. Any deletion propagates over time giving a chance to restore.
 
 ## The power
 
 There are some ways developers can extend it to be powerful.
 
-- Backup tools can directly work with the uploaded data easily.
+- Backup tools can directly work with the uploaded data easily having it in the file system.
 - The client can address the data file any time with its SHA256 hash.
 - The client can XOR split the stream to two different cloud providers lowering privacy risks.
 - The client can do striping to two or more different datacenters doubling bandwidth.
@@ -85,29 +88,31 @@ There are some ways developers can extend it to be powerful.
 - We tested 100 ms nearby and 500 ms latency to continental cloud regions.
 - File hashes act like page and segment addresses of Intel and AMD process pages.
 - Such an arrangement helps to create distributed memory based processes.
-- A simple html [page](https://gitlab.com/eper.io/sat) can build a distributed process leveraging server memory.
-- A process with distributed memory can span across servers supporting serverless and GenAI batch workloads at scale.
+- A simple html [page](https://gitlab.com/eper.io/sat) can build a distributed process.
+- It is leveraging server memory using the tig calls with unlimited possibilities.
+- A process with distributed memory can span across servers.
+- Some scenarios are serverless, gaming, and GenAI batch workloads at scale.
 - Second, minute, day, and week retention of remote memory are able to run workloads like a GC heap.
 - The setup can work as an in-memory distributed process with optional disk swap.
 - Memory mapped, and swap volumes can speed up frequently accessed files but provide more space.
-- An off the shelf wrapper can customize authorization and security.
-- If you need to scale reading back the same data, we suggest to use a Kubernetes ingress of 2-5 nodes.
+- An off the shelf wrapper can customize authorization and security. Try Cloudflare.
+- If you need to scale, we suggest to use a Kubernetes ingress of 2-5 nodes.
 - You can use scaling with our Mitosis algorithm, the cloud investor's and CFO's best dream.
-- Handling a large bandwidth input can be solved with an iSCSI Linux cluster making it a distributed machine.
+- Mitosis uses containers with a lifetime.
+- Mitosis creates new containers, if the work done to liftime percentage exceeds the normal.
+- Handling a large bandwidth input can be solved with a distributed iSCSI Linux cluster.
 - A simple SHA256 on a file or a directory tar or zip can identify an entire version.
-- We eliminate external API calls to git and a necessary download of git binaries on each container.
-- There is no need of complex protocol binaries of git to check out. It is HTTP.
 - tig is ideal for data streaming workloads as a middle tier.
 - tig can handle streaming bottlenecks as a result being cleaned up.
-- tig cannot force update a push like git. Any deletion propagates over time giving a chance to restore.
-- See [example](documentation/commit.sh) to see the power of a code commit generating docker script.
-- The hash construct can help to remote load less frequently used libraries like DLLs on Unix/Windows.
+- See the power of a code commit generating script int the next line
+- `echo curl https://e.com$(tar -c . | curl --data-binary @- -X PUT https://e.com) | tar -x`
+- The hash construct can help to remote load less frequently used libraries like DLLs.
 - Hash addressing makes it safer to download and run scripts like get.docker.com.
 - You can verify anytime, what ran by hashing the entire launch payload.
 - Distributed databases are easy to merge with hash granularity similar to commit sizes.
 - It is super simple to use the same backend for critically distinct workloads.
-- Still, separate workloads can share data with the same hash to save on memory space.
-- Repetitive patterns can be compressed at the level of the block file system.
+- Separate workloads can share data with the same hash to save on memory space.
+- Repetitive patterns can be compressed at the level of the burst requests.
 
 ## Examples
 
@@ -133,13 +138,16 @@ curl -s 'http://127.0.0.1:7777?apikey=abc' | xargs -I {} curl -s 127.0.0.1:7777{
 ```
 
 The main design decision is to let the client deal with ordering and tagging.
-This makes the server side and the protocol simple.
+This makes both the client and server side simple. The protocol is easy to audit.
 Each repository can contain files from multiple projects.
+This helps with corporate wide dependencies.
 Any repeated patterns can be compressed at the file system level.
 
 ## Key Value Store
 
-Using tig as a traditional key value store is a minor feature. The reason is that hashes ensure that the data is cryptographically secure. Once we store by the hash of the key instead of the hash of the value, the value can change.
+You primarily address blocks by the hash of the value. We ensure that once a block is stored by its hash, that address becomes immutable.
+
+Using the system as a traditional key value store is a minor feature. The reason is that hashes ensure that the data is cryptographically secure. Once we store by the hash of a key instead of the hash of the value, the value can change.
 
 - Use a burst of hashed segments to represent large files or database snapshots with hashes as pointers.
 - Change just the index nodes on updates.
