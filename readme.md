@@ -2,18 +2,20 @@
 
 # TIG
 
-Tig is a git alternative to back up your codebase or data.
+Tig is a simple in-memory storage utility for code, data, and vectors.
+It started as a git alternative for your codebase or data, but it grew in feature set.
 
 The design considerations were the following.
 
 - AI generates more code than people.
-- Storing by hash is a huge cost reduction opportunity in data lakes due to duplications.
-- Copilots can apply generic code. Author bookkeeping becomes unnecessary.
-- Reliability storing by hash is more important with more code and less time to verify.
+- Storing data by its hash is a huge cost reduction opportunity in data lakes due to duplications.
+- Copilots can apply generic code. Author bookkeeping of git becomes unnecessary.
+- Reliability achieved by storing with hash is important with more code and less time to verify.
 - It is safer to address code with its entire hash than a file name, date, or version.
 - Storage is cheaper, simple consistency is more important than perfectly optimized disk usage.
+- Duplications are the number one disk usage optimization technique.
 - Hashing chunks of an entire file solves repetition of blocks easily returned as a burst read.
-- Change ordering is obsolete. Generative AI works on parallel versions.
+- Generative AI works on parallel versions. Change ordering is obsolete.
 - Time stamps are less important, coding is non-linear.
 - A stable codebase is important. A hash identifies an entire repo, not a diff.
 - All revisions must tested and reviewed before use. Who wrote them is obsolete with AI.
@@ -22,44 +24,54 @@ The design considerations were the following.
 - We may still need a way to securely iterate through all versions to back up by admins.
 - Api key is good enough for admins, especially if it can only be set by the owner of the server.
 - Api key can be extended with 2FA wrappers and monitoring solutions easily.
-- The retention and cleanup logic solves the case of privacy laws.
-- If the vast majority of the systems is on auto clean, finding the source of personal data is easy.
+- The retention and cleanup logic solves the major requirements of privacy laws.
+- If the system is on auto clean, finding the source of personal data is easy.
 - Your data is cleaned up in a period like ten minutes or two weeks by default.
-- Answer to a privacy question can be "If you used the site more than two weeks ago, your data is deleted."
-- Secondary backups can still iterate and store data for longer keeping the cache container size fixed.
 - Most systems are on auto clean. Use the last backup to retrieve or delete private data.
-- We favor streaming workloads limiting the buffer size used.
+- Answer to a privacy question can be any data older than two weeks is deleted.
+- Secondary backups can still iterate and store data for longer.
+- The cleanup logic keeps the most expensive internet facing containers fixed in size.
+- We favor streaming workloads just limiting the buffer size used.
 - Streaming with smaller blocks allows prefetching content in advance for reliability and security.
-- We require some clustering behavior with any replicas handled in applications.
+- We provide clustering behavior with any replicas handled in applications.
 - Clustering is balanced, when hashes identify the blocks.
-- We also released first under Creative Commons 0 license. This is better suitable for research organizations focused on patents.
-- Creative Commons also sounds like Civilian Control to us.
-- We are also considering releasing tig under the Apache license. This is better for SaaS providers focused on a robust codebase.
+- We released the code in the civilian control friendly Creative Commons 0 license.
+- CC0 is more suitable for research organizations focused on patents.
+- We are also considering releasing it under the Apache license.
+- Apache is better for SaaS providers focused on a robust codebase due to the size of the community.
 
 ## Security
 
 You can use an API key for internal corporate networks to protect administrative features.
 
-- Lost tokens and passwords are an issue already.
+- Lost tokens and passwords are an issue already, keys are acceptable.
 - An api key is a good way to reliably separate apps and mark legally private access.
-- If your browser has issues with api keys, it has an issue with bearer tokens, too.
-- Your organization may separately enforce a hardware security module or trusted platform module for compliance.
+- If your browser has issues with api keys, it probably has an issue with bearer tokens.
+- Your organization may use a hardware security or trusted platform module for compliance.
 - It is difficult to verify the integrity of a manufactured lot of HSM or TPM hardware.
 - We suggest adding 2FA here & any AI monitoring tool based on your organization's standards.
-- The reason for passing responsibility is that responsible CIOs insist on full & complete control.
+- We pass responsibility to the integrator to avoid a bouncy castle of patch work.
+- The reason is that responsible CIOs insist on full & complete control.
 - The apikey on disk is safer than the in memory variable due to the mutability and observability.
-- Make sure the logic cannot write any other files than the 64 byte SHA256 with tig extension.
+- We make sure the logic cannot write any other files than the 64 byte SHA256 with tig extension.
 - SHA512 may be an option as a competitive edge for a paid option compared to the free download.
-- Check the downloaded codebase periodically as ransomware can tamper with memory, disk storage, or chipset buses.
-- Implementations that do not require backups are safer without an apikey omitting any admin access.
-- The logic deletes unused items periodically for safety and privacy. It is ideal for self-healing demos.
-- Make sure to limit physical access to cloud instances to protect the data. No SSH, console, extensions etc.
-
-You can even fetch public operating system update binaries through unencrypted http.
-Try something like `http://example.com/5fe8...1ec.tig`. It is secure, if you verify the hash `5fe8...1ec` downstream.
-This power eliminates any man-in-the-middle attack possibilities due to the design of TLS being opaque and encrypted for the most important files.
-Governments can monitor the channel without affecting the code integrity of the corporate networks.
-This integrity was the power of early DOS and Windows systems that partly made Microsoft so successful.
+- Check and audit the downloaded codebase periodically.
+- Ransomware can tamper with memory, disk storage, or chipset buses. Frequent audits help.
+- Implementations that do not require backups are safer without an apikey.
+- If there is no api key, then admin access is impossible without the OS.
+- The logic deletes unused items periodically for safety and privacy.
+- This feature makes it ideal for self-healing demos.
+- Make sure to limit physical access to cloud instances to protect the data.
+- Try to eliminate SSH, console, extensions, unnecessary updates, etc.
+- You can even fetch public operating system update binaries through unencrypted http.
+- Try something like `http://example.com/5fe8...1ec.tig`.
+- It is secure, if you verify the hash `5fe8...1ec` downstream on the client box.
+- This power eliminates any man-in-the-middle attack possibilities.
+- Such threats are due to the design of TLS being opaque and encrypted for the most important files.
+- You do not know what is transmitted. Why would you encrypt public updates?
+- Governments can monitor the channel for security.
+- The code integrity of the corporate networks can be ensured better with traffic monitoring.
+- This integrity was the power of early DOS and Windows systems that partly made Microsoft so successful.
 
 ## The power
 
