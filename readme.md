@@ -55,6 +55,12 @@ You can use an API key for internal corporate networks to protect administrative
 - The logic deletes unused items periodically for safety and privacy. It is ideal for self-healing demos.
 - Make sure to limit physical access to cloud instances to protect the data. No SSH, console, extensions etc.
 
+You can even fetch public operating system update binaries through unencrypted http.
+Try something like `http://example.com/5fe8...1ec.tig`. It is secure, if you verify the hash `5fe8...1ec` downstream.
+This power eliminates any man-in-the-middle attack possibilities due to the design of TLS being opaque and encrypted for the most important files.
+Governments can monitor the channel without affecting the code integrity of the corporate networks.
+This integrity was the power of early DOS and Windows systems that partly made Microsoft so successful.
+
 ## The power
 
 There are some ways developers can extend it to be powerful.
@@ -291,6 +297,11 @@ Use a memory mapped drive as the data directory. Ideally this is tmpfs.
 Tmpfs and ext4 both have limitations of minimum file size of 4K on Intel and 8K on ARM. Try to use bigger buffers as a result.
 
 If you have to use very small data bits, then it is better to keep updating the same file using a key value pair instead of hashed storage.
+
+10 minute is a good retention period for demos, 1 GBps is a common cloud bandwidth. These were used to set the default file size.
+
+The benchmarks are limited due to the need to read the entire stream to maintain hashes and find the right location.
+This helps on the other hand with a robust security, especially for sensitive code and binaries.
 
 ## Strategy
 

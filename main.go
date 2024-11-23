@@ -30,7 +30,6 @@ import (
 // tig is a low complexity data and code storage solution. It is a toy git that you can review, verify, and certify cheaper.
 // No branding, no-brainer. It just works mostly for distributed in memory storage like Redis or SAP Hana.
 
-//10 minute is a good valve for demos, 1 GBps is a common cloud bandwidth.
 var root = "/data"
 var cleanup = 10 * time.Minute
 const MaxFileSize = 128 * 1024 * 1024
