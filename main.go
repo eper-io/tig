@@ -42,7 +42,7 @@ const routedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
 var endOfLife = time.Now().Add(time.Duration(10*365*24*time.Hour))
 // MaxMemSize / MaxFileSize
 var semaphore = make(chan int, MaxMemSize / MaxFileSize)
-var addLocalhost = true
+var addLocalhost = false
 
 func main() {
 	if cluster != "localhost" {
@@ -107,28 +107,31 @@ func Setup() {
 		if cluster != "localhost" && !IsCallRouted(w, r) {
 			// UDP multicast is limited on K8S. We can use a headless service instead.
 			remoteAddress := ""
-			replicaAddress := ""
-			var wg sync.WaitGroup
+			replicaAddress := "not-replicating"
+			if endOfLife.Before(time.Now()) {
+				replicaAddress = "replicating"
+			}
+			//var wg sync.WaitGroup
 			list, _ := net.LookupHost(cluster)
 			if addLocalhost {
 				list = append(list, "127.0.0.1")
 			}
 			for _, clusterAddress := range list {
 				verifyAddress, rootAddress, forwardAddress := DistributedAddress(r, bodyHash, clusterAddress)
-				wg.Add(1)
-				go func(verifyAddress, forwardAddress, rootAddress string) {
+				//wg.Add(1)
+				//go func(verifyAddress, forwardAddress, rootAddress string) {
 					if DistributedCheck(verifyAddress) {
 						remoteAddress = forwardAddress
 					}
-					if replicaAddress == "" {
+					if replicaAddress == "replicating" {
 						if DistributedCheck(rootAddress) {
 							replicaAddress = remoteAddress
 						}
 					}
-					wg.Done()
-				}(verifyAddress, forwardAddress, rootAddress)
+					//wg.Done()
+				//}(verifyAddress, forwardAddress, rootAddress)
 			}
-			wg.Wait()
+			//wg.Wait()
 			if endOfLife.Before(time.Now()) && remoteAddress == "" {
 				replicaAddress = ForwardStore(w, r, replicaAddress)
 				if replicaAddress != "" {
@@ -280,12 +283,9 @@ func MarkAsUsed(r *http.Request, fileName string) {
 		chTimes = param
 	}
 	if chTimes != "0" {
-		go func(fileName1 string) {
-			current := time.Now()
-			_ = os.Chtimes(fileName, current, current)
-		}(fileName)
+		current := time.Now()
+		_ = os.Chtimes(fileName, current, current)
 	}
-
 }
 
 func ListStore(w http.ResponseWriter, r *http.Request) {

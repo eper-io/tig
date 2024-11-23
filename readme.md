@@ -284,6 +284,14 @@ Better performance could be achieved by C or C++ LLM transformations, better dos
 while true; do uuidgen | time curl http://127.0.0.1:7777`time curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777'`; done
 ```
 
+There are a few hints how to optimize for the best performance.
+
+Use a memory mapped drive as the data directory. Ideally this is tmpfs.
+
+Tmpfs and ext4 both have limitations of minimum file size of 4K on Intel and 8K on ARM. Try to use bigger buffers as a result.
+
+If you have to use very small data bits, then it is better to keep updating the same file using a key value pair instead of hashed storage.
+
 ## Strategy
 
 - Scheduling cleanups at startup covers migrations due to hardware upgrades.
