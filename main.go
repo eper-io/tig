@@ -46,6 +46,12 @@ var poolExternal = make(chan []byte, MaxMemSize / MaxFileSize)
 var poolCluster = make(chan []byte, MaxMemSize / MaxFileSize)
 var addLocalhost = false
 
+var client = &http.Client{
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	},
+}
+
 func main() {
 	if cluster != "localhost" {
 		rand.Seed(100)
@@ -104,10 +110,13 @@ func Setup() {
 			return
 		}
 		runtime.GC()
+		client.CloseIdleConnections()
 		if cluster != "localhost" && !IsCallRouted(w, r) {
-			if internalCallFromCluster(w, r) {
+			if fulfillRequestByCluster(w, r) {
 				return
 			}
+			fmt.Println("unexpected error")
+			return
 		}
 		buffer := <-poolExternal
 		defer func(a0 []byte) {
@@ -121,71 +130,75 @@ func Setup() {
 			buf := bytes.NewBuffer(buffer)
 			buf.Reset()
 			n, _ := io.Copy(buf, io.LimitReader(r.Body, MaxFileSize))
-			body = buffer[0:n]
+			body = buf.Bytes()[0:n]
 			_ = r.Body.Close()
 		}
 
-		if r.Method == "PUT" || r.Method == "POST" {
-			if r.URL.Path == "/kv" {
-				// We allow key value pairs for limited use of persistent checkpoints, commits, and tags
-				shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
-				_, _ = io.WriteString(w, "/"+shortName)
-				return
-			}
-			if QuantumGradeAuthenticationFailed(w, r) {
-				return
-			}
-			w.WriteHeader(http.StatusOK)
-			if IsValidTigHash(r.URL.Path) {
-				WriteVolatile(w, r, body)
-			} else {
-				WriteNonVolatile(w, r, body)
-			}
-			return
-		}
-		if r.Method == "DELETE" {
-			if !IsValidTigHash(r.URL.Path) {
-				w.WriteHeader(http.StatusExpectationFailed)
-				return
-			}
-			if QuantumGradeAuthenticationFailed(w, r) {
-				return
-			}
-			if DeleteStore(w, r) {
-				return
-			}
-			return
-		}
-		if r.Method == "HEAD" {
-			if !IsValidTigHash(r.URL.Path) {
-				w.WriteHeader(http.StatusExpectationFailed)
-				return
-			}
-			_, err := os.Stat(path.Join(root, r.URL.Path))
-			if err != nil {
-				QuantumGradeError()
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
-			QuantumGradeSuccess()
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		if r.Method == "GET" {
-			if r.URL.Path == "/" {
-				if QuantumGradeAuthenticationFailed(w, r) {
-					return
-				}
-				ListStore(w, r)
-				return
-			} else {
-				ReadStore(w, r)
-			}
-		}
+		fulfillRequestLocally(w, r, body)
 	})
 }
 
-func internalCallFromCluster(w http.ResponseWriter, r *http.Request) bool {
+func fulfillRequestLocally(w http.ResponseWriter, r *http.Request, body []byte) {
+	if r.Method == "PUT" || r.Method == "POST" {
+		if r.URL.Path == "/kv" {
+			// We allow key value pairs for limited use of persistent checkpoints, commits, and tags
+			shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
+			_, _ = io.WriteString(w, "/"+shortName)
+			return
+		}
+		if QuantumGradeAuthenticationFailed(w, r) {
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if IsValidTigHash(r.URL.Path) {
+			WriteVolatile(w, r, body)
+		} else {
+			WriteNonVolatile(w, r, body)
+		}
+		return
+	}
+	if r.Method == "DELETE" {
+		if !IsValidTigHash(r.URL.Path) {
+			w.WriteHeader(http.StatusExpectationFailed)
+			return
+		}
+		if QuantumGradeAuthenticationFailed(w, r) {
+			return
+		}
+		if DeleteStore(w, r) {
+			return
+		}
+		return
+	}
+	if r.Method == "HEAD" {
+		if !IsValidTigHash(r.URL.Path) {
+			w.WriteHeader(http.StatusExpectationFailed)
+			return
+		}
+		_, err := os.Stat(path.Join(root, r.URL.Path))
+		if err != nil {
+			QuantumGradeError()
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		QuantumGradeSuccess()
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method == "GET" {
+		if r.URL.Path == "/" {
+			if QuantumGradeAuthenticationFailed(w, r) {
+				return
+			}
+			ListStore(w, r)
+			return
+		} else {
+			ReadStore(w, r)
+		}
+	}
+}
+
+func fulfillRequestByCluster(w http.ResponseWriter, r *http.Request) bool {
 	buffer := <-poolCluster
 	defer func(a0 []byte) {
 		for i := range a0 {
@@ -198,7 +211,7 @@ func internalCallFromCluster(w http.ResponseWriter, r *http.Request) bool {
 		buf := bytes.NewBuffer(buffer)
 		buf.Reset()
 		n, _ := io.Copy(buf, io.LimitReader(r.Body, MaxFileSize))
-		body = buffer[0:n]
+		body = buf.Bytes()[0:n]
 		_ = r.Body.Close()
 	}
 	bodyHash := fmt.Sprintf("%x.tig", sha256.Sum256(body))
@@ -234,7 +247,8 @@ func internalCallFromCluster(w http.ResponseWriter, r *http.Request) bool {
 		DistributedCall(w, r, r.Method, body, remoteAddress)
 		return true
 	}
-	return false
+	fulfillRequestLocally(w, r, body)
+	return true
 }
 
 func ForwardStore(w http.ResponseWriter, r *http.Request, replicaAddress string) (remoteAddress string) {
@@ -250,11 +264,6 @@ func ForwardStore(w http.ResponseWriter, r *http.Request, replicaAddress string)
 		localBytes, _ := os.ReadFile(localStore)
 		if localBytes != nil {
 			remoteAddress = replicaAddress
-			client := &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				},
-			}
 			req, _ := http.NewRequest("PUT", remoteAddress, bytes.NewBuffer(localBytes))
 			resp, _ := client.Do(req)
 			if resp != nil && resp.Body != nil {
@@ -457,20 +466,18 @@ func DistributedAddress(r *http.Request, bodyHash, clusterAddress string) (strin
 }
 
 func DistributedCheck(address string) bool {
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
+
 	req, err := http.NewRequest("HEAD", address, nil)
 	if err != nil {
 		return false
 	}
 	resp, err := client.Do(req)
-	if err != nil || resp == nil || resp.Body == nil {
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
+	}
+	if err != nil || resp == nil {
 		return false
 	}
-	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return false
 	}
@@ -478,17 +485,15 @@ func DistributedCheck(address string) bool {
 }
 
 func DistributedCall(w http.ResponseWriter, r *http.Request, method string, body []byte, address string) bool {
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
 	req, err := http.NewRequest(method, address, bytes.NewBuffer(body))
 	if err != nil {
 		return false
 	}
 	resp, err := client.Do(req)
 	if err != nil || resp == nil || resp.Body == nil {
+		if resp != nil && resp.Body != nil {
+			_ = resp.Body.Close()
+		}
 		return false
 	}
 	w.WriteHeader(resp.StatusCode)
