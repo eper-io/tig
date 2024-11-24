@@ -117,50 +117,57 @@ There are some ways developers can extend it to be powerful.
 ## Examples
 
 ```
+# Read-only hash based storage
 echo test > /tmp/test
-echo abc > /tmp/apikey
-curl 'http://127.0.0.1:7777/?apikey=abc'
-curl -X PUT 'http://127.0.0.1:7777/?apikey=abc' -T /tmp/test
-curl -X POST 'http://127.0.0.1:7777/?apikey=abc' -T /tmp/test
-curl 'http://127.0.0.1:7777?apikey=abc'
+curl -X PUT 'http://127.0.0.1:7777' -T /tmp/test
+curl -X POST 'http://127.0.0.1:7777' -T /tmp/test
+curl 'http://127.0.0.1:7777'
 curl 'http://127.0.0.1:7777/f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2.tig'
 cat /tmp/test | sha256sum | head -c 64
 printf "http://127.0.0.1:7777/`cat /tmp/test | sha256sum | head -c 64`.tig"
+
 # Errors, formatting, and random content
 curl 'http://127.0.0.1:7777/randomfileunauthorized'
-uuidgen | sha256sum | head -c 64 | curl --data-binary @- -X POST 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
-curl 'http://127.0.0.1:7777?apikey=abc&format=http://127.0.0.1:7777*'
+uuidgen | sha256sum | head -c 64 | curl --data-binary @- -X PUT 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
+curl 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
+
 # Commit the current directory
-tar --exclude .git -c . | curl --data-binary @- -X POST 'http://127.0.0.1:7777/?apikey=abc'
-zip -r -x '.*' - . | curl --data-binary @- -X POST 'http://127.0.0.1:7777/?apikey=abc'
-# Do a full backup of the remote repository locally
+tar --exclude .git -c . | curl --data-binary @- -X PUT 'http://127.0.0.1:7777'
+zip -r -x '.*' - . | curl --data-binary @- -X POST 'http://127.0.0.1:7777'
+
+# Do a full backup of the remote repository locally.
+# This is possible, but discouraged due to security limitations.
+echo abc >/tmp/apikey
 curl -s 'http://127.0.0.1:7777?apikey=abc' | xargs -I {} curl -s 127.0.0.1:7777{} --output .{}
 ```
 
 The main design decision is to let the client deal with ordering and tagging.
 This makes both the client and server side simple. The protocol is easy to audit.
 Each repository can contain files from multiple projects.
-This helps with corporate wide dependencies.
+This helps with corporate wide dependencies, and cost reduction.
 Any repeated patterns can be compressed at the file system level.
 
 ## Key Value Store
 
-You primarily address blocks by the hash of the value. We ensure that once a block is stored by its hash, that address becomes immutable.
+You primarily address blocks by the hash of the value. We ensure that once a block is stored by its hash, that address remains immutable.
 
 Using the system as a traditional key value store is a minor feature. The reason is that hashes ensure that the data is cryptographically secure. Once we store by the hash of a key instead of the hash of the value, the value can change.
 
-- Use a burst of hashed segments to represent large files or database snapshots with hashes as pointers.
+This are the possibilities of using tig as a key value store.
+
+- Use a burst of hashed segments of large files or database snapshots with hashes as pointers.
 - Change just the index nodes on updates.
 - Only the root snapshot key requires a value stored by a key.
-- We just `PUT` the data, and refer to it later with the hash of the value in the non-key-value case.
-- We use the hash of the key in case of the key-value case.
+- We just `PUT` the data, and refer to it with the hash of the value in the non-key-value case.
+- We use the hash of the key in case of the key-value case. A key is read-write.
 - We specify the key with its SHA256 hash in the path.
 - We `HTTP PUT` to this hashed key path with the data as body to store a key value pair.
+- The difference is that R/W keys have a unique path compared to the read only mode of root `/`.
 - The presence of the path at `HTTP PUT` indicates that this is a key value pair, not raw data.
-- The hash of a key will collide with any other storage of that pattern.
-- Use the hash of the hash of a key to resolve this conflict of patterns.
-- If a data file has been stored by its hash, we do not allow it to be overwritten as a key value pair.
-- The key hash returned on success can be used later to update the key value pair as many times as desired.
+- The hash of a key may collide with any previus storage of that key as hash.
+- Use the hash of the hash of a key to resolve this collision of values.
+- If a data file has been stored by its hash, you cannot overwrite anymore as a key value pair.
+- The key hash returned on success can be used to update the key value pair many times.
 - The key hash will never change.
 
 Example
@@ -206,16 +213,16 @@ abcdefghi
 
 ## Synchronization
 
-We rely on file system level synchronization such as O_EXCL. We do not use processor test and set (TAS) or (XCHG) considered expensive for memory buses on shared cores.
-Setting a variable only, if it was not set is good enough for synchronization w/ retry for most use cases such as creating a mutex/semaphore for lambda function runs.
+We rely on file system level synchronization such as O_EXCL. We do not use processor test and set (TAS) or (XCHG) instructions considered expensive for memory buses on shared cores.
+Setting a variable only, if it was not set is good enough for synchronization most use cases such as creating a mutex/semaphore for lambda function runs.
 
-The following call will only return the path, if we successfully set the specified file used as an exclusive slot. It will return empty, if it is used.
+The following call will only return the path, if we successfully set the specified file used as an exclusive slot. It will return empty, if it is used. We should retry or choose another key.
 
 ```
 echo 123 | curl -X 'PUT' --data-binary @- 'http://127.0.0.1/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig?setifnot=1'
 ```
 
-The following call will append to the file using file system level synchronization just like `>>log.txt`. This helps with logs and traces. Use a random hash path for proper behavior.
+The following call will append to the file using file system level synchronization just like `>>log.txt`. This helps with logs and traces. Use a random key path for proper behavior.
 
 ```
 echo We added one more file. | curl -X 'PUT' --data-binary @- 'http://127.0.0.1/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig?append=1'
@@ -223,7 +230,7 @@ echo We added one more file. | curl -X 'PUT' --data-binary @- 'http://127.0.0.1/
 
 ## Storage directory suggestions:
 
-`/data` is the default location that can be created before startup.
+`/data` is the default location. It must exist, otherwise we fall back to `/tmp` 
 
 `/tmp` and any `tmpfs` : It cleans up fast, it is sometimes low latency memory based storage.
 
@@ -233,15 +240,20 @@ echo We added one more file. | curl -X 'PUT' --data-binary @- 'http://127.0.0.1/
 
 `/opt/` : Use this for entire solutions. It is persistent.
 
-`~/` : Use, if you run outside a container without privileges, but you need persistence across reboot.
+`~/` : Use, if you run outside a container without privileges with the need of persistence.
 
-It is a good idea to perform delayed delete on files setting the cleanup period.
+It is a good idea to perform delayed delete on files setting a small cleanup period.
 
 Clients can keep resubmitting or accessing them making the system more resilient.
 
-Updates and queries reset the timer. The timer restarts on existing data when we restart the container.
+Updates and queries reset the timer. This is similar to the busy flag of pages in traditional Intel and ARM processors capable of virtual memory handling. The timer restarts on existing data when we restart the container. Old files are simply deleted.
 
-Such systems comply easier with privacy regulations. It is just a temporary cache not a root storage.
+A standard keep alive logic is scanning a new line separated list of files and directories.
+This can happen every five minutes if the cleanup period is ten minutes.
+Recursive scanning allows a keep alive logic for distinct directory trees, or roots.
+The traffic also ensures that the files are valid. It can be used for billing.
+
+Such systems comply easier with privacy regulations. It is just a temporary cache not a root storage. It makes the system a router with delay rather than a database or file storage.
 
 Here is an example to launch tig on ramdisk.
 
@@ -296,9 +308,13 @@ cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 
 - A K8S headless service can expose the addresses of all active pods.
 
-- A K8S headless service has a different local .internal name. We use InsecureSkipVerify=true for these cluster local calls over the external TLS API.
+- A K8S headless service has a different local .internal name. We use InsecureSkipVerify=true for these cluster local calls over the external TLS API. `TODO make this adjustable`
 
-- We forward requests to all active pods.
+- We forward requests to all active pods. This may add some latency.
+
+- You can also set a flag to use a tree of tig containers adding the local address to the leaf.
+
+- See the code for details.
 
 ## Benchmark
 
@@ -310,7 +326,7 @@ Better performance could be achieved by C or C++ LLM transformations, better dos
 while true; do uuidgen | time curl http://127.0.0.1:7777`time curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777'`; done
 ```
 
-There are a few hints how to optimize for the best performance.
+There are a few hints how to optimize the code for the best performance.
 
 Use a memory mapped drive as the data directory. Ideally this is tmpfs.
 
