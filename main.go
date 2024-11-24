@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -40,7 +41,9 @@ var instance = fmt.Sprintf("%d", time.Now().UnixNano()+rand.Int63())
 const routedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
 var endOfLife = time.Now().Add(time.Duration(10*365*24*time.Hour))
 // MaxMemSize / MaxFileSize
-var pool = make(chan []byte, MaxMemSize / MaxFileSize)
+var poolExternal = make(chan []byte, MaxMemSize / MaxFileSize)
+// MaxMemSize / MaxFileSize to avoid deadlocks and bottlenecks
+var poolCluster = make(chan []byte, MaxMemSize / MaxFileSize)
 var addLocalhost = false
 
 func main() {
@@ -68,7 +71,12 @@ func main() {
 
 func Setup() {
 	for i := 0; i < MaxMemSize / MaxFileSize; i++ {
-		pool <- make([]byte, MaxFileSize)
+		poolExternal <- make([]byte, MaxFileSize)
+	}
+	if cluster != "localhost" {
+		for i := 0; i < MaxMemSize / MaxFileSize; i++ {
+			poolCluster <- make([]byte, MaxFileSize)
+		}
 	}
 	go func() {
 		for {
@@ -95,53 +103,26 @@ func Setup() {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		body := <-pool
+		runtime.GC()
+		if cluster != "localhost" && !IsCallRouted(w, r) {
+			if internalCallFromCluster(w, r) {
+				return
+			}
+		}
+		buffer := <-poolExternal
 		defer func(a0 []byte) {
 			for i := range a0 {
 				a0[i] = 0
 			}
-			pool <- a0
-		}(body)
+			poolExternal <- a0
+		}(buffer)
+		var body []byte
 		if r.Body != nil {
-			body = NoIssueApi(io.ReadAll(io.LimitReader(r.Body, MaxFileSize)))
-			if body == nil {
-				body = []byte{}
-			}
+			buf := bytes.NewBuffer(buffer)
+			buf.Reset()
+			n, _ := io.Copy(buf, io.LimitReader(r.Body, MaxFileSize))
+			body = buffer[0:n]
 			_ = r.Body.Close()
-		}
-		bodyHash := fmt.Sprintf("%x.tig", sha256.Sum256(body))
-		if cluster != "localhost" && !IsCallRouted(w, r) {
-			// UDP multicast is limited on K8S. We can use a headless service instead.
-			remoteAddress := ""
-			replicaAddress := "not-replicating"
-			if endOfLife.Before(time.Now()) {
-				replicaAddress = "replicating"
-			}
-			list, _ := net.LookupHost(cluster)
-			if addLocalhost {
-				list = append(list, "127.0.0.1")
-			}
-			for _, clusterAddress := range list {
-				verifyAddress, rootAddress, forwardAddress := DistributedAddress(r, bodyHash, clusterAddress)
-				if DistributedCheck(verifyAddress) {
-					remoteAddress = forwardAddress
-				}
-				if replicaAddress == "replicating" {
-					if DistributedCheck(rootAddress) {
-						replicaAddress = remoteAddress
-					}
-				}
-			}
-			if endOfLife.Before(time.Now()) && remoteAddress == "" {
-				replicaAddress = ForwardStore(w, r, replicaAddress)
-				if replicaAddress != "" {
-					remoteAddress = replicaAddress
-				}
-			}
-			if remoteAddress != "" {
-				DistributedCall(w, r, r.Method, body, remoteAddress)
-				return
-			}
 		}
 
 		if r.Method == "PUT" || r.Method == "POST" {
@@ -202,6 +183,58 @@ func Setup() {
 			}
 		}
 	})
+}
+
+func internalCallFromCluster(w http.ResponseWriter, r *http.Request) bool {
+	buffer := <-poolCluster
+	defer func(a0 []byte) {
+		for i := range a0 {
+			a0[i] = 0
+		}
+		poolCluster <- a0
+	}(buffer)
+	var body []byte
+	if r.Body != nil {
+		buf := bytes.NewBuffer(buffer)
+		buf.Reset()
+		n, _ := io.Copy(buf, io.LimitReader(r.Body, MaxFileSize))
+		body = buffer[0:n]
+		_ = r.Body.Close()
+	}
+	bodyHash := fmt.Sprintf("%x.tig", sha256.Sum256(body))
+	// UDP multicast is limited on K8S. We can use a headless service instead.
+	remoteAddress := ""
+	replicaAddress := "not-replicating"
+	if endOfLife.Before(time.Now()) {
+		replicaAddress = "replicating"
+	}
+	list, _ := net.LookupHost(cluster)
+	if addLocalhost {
+		list = append(list, "127.0.0.1")
+	}
+	// We use linear polling because goroutines use too much memory.
+	for _, clusterAddress := range list {
+		verifyAddress, rootAddress, forwardAddress := DistributedAddress(r, bodyHash, clusterAddress)
+		if DistributedCheck(verifyAddress) {
+			remoteAddress = forwardAddress
+		}
+		if replicaAddress == "replicating" {
+			if DistributedCheck(rootAddress) {
+				replicaAddress = remoteAddress
+			}
+		}
+	}
+	if endOfLife.Before(time.Now()) && remoteAddress == "" {
+		replicaAddress = ForwardStore(w, r, replicaAddress)
+		if replicaAddress != "" {
+			remoteAddress = replicaAddress
+		}
+	}
+	if remoteAddress != "" {
+		DistributedCall(w, r, r.Method, body, remoteAddress)
+		return true
+	}
+	return false
 }
 
 func ForwardStore(w http.ResponseWriter, r *http.Request, replicaAddress string) (remoteAddress string) {
@@ -515,6 +548,11 @@ func NoIssueApi(buf []byte, err error) []byte {
 }
 
 func NoIssueWrite(i int, err error) {
+	if err != nil {
+	}
+}
+
+func NoIssueCopy(i int64, err error) {
 	if err != nil {
 	}
 }

@@ -413,7 +413,14 @@ spec:
         args: ["-c", "cd /go/src;curl https://example.com/1915.....c9d5.tig | tar -x;go run main.go"]
         ports:
         - containerPort: 443
-
+        volumeMounts:
+        - name: tmpfs-volume
+          mountPath: /data
+      volumes:
+      - name: tmpfs-volume
+        emptyDir:
+          medium: Memory
+          sizeLimit: 2Gi
 ---
 
 # Service
