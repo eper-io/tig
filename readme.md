@@ -308,7 +308,7 @@ cp /etc/letsencrypt/live/example.com/fullchain.pem /etc/ssl/tig.crt
 
 - A K8S headless service can expose the addresses of all active pods.
 
-- A K8S headless service has a different local .internal name. We use InsecureSkipVerify=true for these cluster local calls over the external TLS API. `TODO make this adjustable`
+- A K8S headless service has a different local .internal name. We use InsecureSkipVerify=true for these cluster local calls over the external TLS API.
 
 - We forward requests to all active pods. This may add some latency.
 
@@ -345,7 +345,7 @@ This helps on the other hand with a robust security, especially for sensitive co
 
 - Do not rely on cleanup to cover any restart issues.
 
-- Crashes or hangs should be fixed instead.
+- Crashes or hangs should be fixed first instead.
 
 - We keep the code less than a few hundred lines to be easy to audit.
 
@@ -357,17 +357,21 @@ This helps on the other hand with a robust security, especially for sensitive co
 
 - Fully utilizing standalone GPU, memory, and disk clusters is an opportunity.
 
-- Clusters can scale using pod termination signals, an additional API, or timeout.
+- Clusters can scale using pod termination signals, an additional API, or lifetime.
 
-- We decided to implement cluster balancing with a timeout to offload & terminate.
+- We decided to implement cluster balancing with a lifetime to offload & terminate.
 
-- Terminating with a timeout is very deterministic and secure way to offload and scale in & out.
+- Terminating with a lifetime is very deterministic and secure way to offload and scale in & out.
 
 - Use a cluster of two nodes or more to implement cluster balancing.
 
 - The ever replacing dynamism of pods with lifetime makes the solution flexible and scalable.
 
-- The latest codebase is always at [https://gitlab.com/eper.io/tig](https://gitlab.com/eper.io/tig) to support multiple providers increasing the negotiation power of the community.
+- We publish the codebase supporting multiple providers.
+
+- We do this to increase the negotiation power of the community 
+
+- The latest codebase is always at [https://gitlab.com/eper.io/tig](https://gitlab.com/eper.io/tig)
 
 - There is a mirror at [https://github.com/eper-io/tig](https://github.com/eper-io/tig)
 
@@ -377,10 +381,11 @@ You can run tig as a cluster deployment with multiple pods on Kubernetes.
 
 Here is an example yaml file that we tested with Amazon EKS.
 
-Generate a code file running tig already on example.com. Place `certificate.crt`, `ba_bundle.crt`, `private.key` into `./.implementation/example.com`
+Generate a code file running tig on example.com.
 
-You can either use Letsencrypt or zerossl as described above.
-
+- You can either use Letsencrypt or zerossl as described above to get TLS files.
+- Place `certificate.crt`, `ba_bundle.crt`, `private.key` into `./.implementation/example.com`
+- Add the script below as `tig.sh` into `.implementation/example.com/tig.sh` . Use `chmod u+x` .
 ```bash
 IMPLEMENTATION=./.implementation/example.com DATAGET=https://example.com DATASET=https://example.com ./documentation/tig.sh
 ```
@@ -471,4 +476,5 @@ spec:
 
 ## TODO
 
-- tig was actually an idea too quick. It is not really a `git` clone anymore. We could rename this to `storage` or even better `route` that reflects the behavior.
+- tig was actually a quick idea. It is not really a `git` clone anymore. We could rename this to `storage` or even better `router` that reflects the behavior. It is a timed router or RAM cache.
+- Make `InsecureSkipVerify` adjustable for public internet use outside corporate networks.
