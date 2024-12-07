@@ -181,7 +181,6 @@ a ./main.go
 a ./.do/deploy.template.yaml
 a ./documentation/tig.yaml
 a ./documentation/logo.png
-a ./documentation/tig.sh
 a ./documentation/logo.jpeg
 a ./documentation/commit.sh
 /10f21af8baa6980bcd0e26ac91822c6a8b9face9ce568aacbed422b36a08e54e.tig
@@ -201,7 +200,6 @@ a ./documentation/commit.sh
 ./.do/deploy.template.yaml
 ./documentation/tig.yaml
 ./documentation/logo.png
-./documentation/tig.sh
 ./documentation/logo.jpeg
 ./documentation/commit.sh
 100  420k    0  420k    0     0  20.4M      0 --:--:-- --:--:-- --:--:-- 21.5M
@@ -470,10 +468,11 @@ Here is an example yaml file that we tested with Amazon EKS.
 Generate a code file running tig on example.com.
 
 - You can either use Letsencrypt or zerossl as described above to get TLS files.
-- Place `certificate.crt`, `ba_bundle.crt`, `private.key` into `./.implementation/example.com`
-- Add the script below as `tig.sh` into `.implementation/example.com/tig.sh` . Use `chmod u+x` .
+- Place `private.key` into `/etc/ssl/tig.key`
+- Place `certificate.crt`, `ba_bundle.crt` into `/etc/ssl/tig.crt`
+- Run the script below to commit and get the command to include in your Kubernetes yaml file .
 ```bash
-IMPLEMENTATION=./.implementation/example.com DATAGET=https://example.com DATASET=https://example.com ./documentation/tig.sh
+DATAGET=https://example.com DATASET=https://example.com ./documentation/commit.sh
 ```
 
 ```yaml

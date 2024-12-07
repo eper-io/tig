@@ -12,5 +12,5 @@
 # Usage:
 # DATAGET=https://www.botanical23.com DATASET=https://www.botanical23.com ./documentation/commit.sh
 
-tar --exclude .git -c . | curl --data-binary @- -X POST $DATASET >/tmp/code.txt
+tar --exclude .git --exclude-from=.gitignore -c . | curl --data-binary @- -X POST $DATASET >/tmp/code.txt
 echo 'cd /go/src'';''curl '$DATAGET$(cat /tmp/code.txt)' | tar -x'';''go run main.go'
