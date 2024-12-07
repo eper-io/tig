@@ -165,7 +165,8 @@ func fulfillRequestLocally(w http.ResponseWriter, r *http.Request, body []byte) 
 		if QuantumGradeAuthenticationFailed(w, r) {
 			return
 		}
-		if DeleteStore(w, r) {
+		if DeleteVolatile(w, r) {
+			_, _ = io.WriteString(w, r.URL.Path)
 			return
 		}
 		return
@@ -361,19 +362,36 @@ func ListStore(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(v.Name(), ".tig") {
 			relativePath := path.Join("/", v.Name())
 			if format != "" {
-				relativePath = fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath)
+				relativePath = FormattedReturnValue(r, v.Name())
 			}
 			NoIssueWrite(io.WriteString(w, relativePath+"\n"))
 		}
 	}
 }
 
-func DeleteStore(w http.ResponseWriter, r *http.Request) bool {
-	if IsValidTigHash(r.URL.Path) {
-		filePath := path.Join(root, r.URL.Path)
-		_ = os.Remove(filePath)
+func DeleteVolatile(w http.ResponseWriter, r *http.Request) bool {
+	if !IsValidTigHash(r.URL.Path) {
+		return false
 	}
-	return false
+	if len(r.URL.Path) <= 1 {
+		return false
+	}
+	// We allow deletion of key value pairs but not non-volatile hashed storage
+	shortName := r.URL.Path[1:]
+	absolutePath := path.Join(root, shortName)
+
+	data, _ := os.ReadFile(absolutePath)
+	shortNameOnDisk := fmt.Sprintf("%x.tig", sha256.Sum256(data))
+	if shortNameOnDisk == shortName {
+		// Disallow updating secure hashed segments already stored.
+		QuantumGradeError()
+		return false
+	}
+	filePath := path.Join(root, r.URL.Path)
+	if os.Remove(filePath) != nil {
+		return false
+	}
+	return true
 }
 
 func WriteVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
@@ -415,9 +433,8 @@ func WriteVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 			return
 		}
 	}
-	format := Nvl(r.URL.Query().Get("format"), "*")
-	relativePath := path.Join("/", shortName)
-	_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath))
+	formatted := FormattedReturnValue(r, shortName)
+	_, _ = io.WriteString(w, formatted)
 }
 
 func WriteNonVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
@@ -432,9 +449,16 @@ func WriteNonVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 		_, _ = io.Copy(file, bytes.NewBuffer(body))
 		_ = file.Close()
 	}
+	formatted := FormattedReturnValue(r, shortName)
+	_, _ = io.WriteString(w, formatted)
+}
+
+func FormattedReturnValue(r *http.Request, shortName string) string {
 	format := Nvl(r.URL.Query().Get("format"), "*")
+	// TODO Audit the use of external format with Sprintf
 	relativePath := path.Join("/", shortName)
-	_, _ = io.WriteString(w, fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath))
+	formatted := fmt.Sprintf(strings.Replace(format, "*", "%s", 1), relativePath)
+	return formatted
 }
 
 func IsCallRouted(w http.ResponseWriter, r *http.Request) bool {

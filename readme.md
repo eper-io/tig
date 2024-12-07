@@ -116,27 +116,89 @@ There are some ways developers can extend it to be powerful.
 
 ## Examples
 
+### Read-only non-volatile hash based storage
+
+We add an item stored by its hash. We won't be able to update or delete it until the system cleanup.
+
 ```
-# Read-only hash based storage
-echo test > /tmp/test
-curl -X PUT 'http://127.0.0.1:7777' -T /tmp/test
-curl -X POST 'http://127.0.0.1:7777' -T /tmp/test
-curl 'http://127.0.0.1:7777'
-curl 'http://127.0.0.1:7777/f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2.tig'
-cat /tmp/test | sha256sum | head -c 64
-printf "http://127.0.0.1:7777/`cat /tmp/test | sha256sum | head -c 64`.tig"
+% echo 123 | curl -X PUT --data-binary @- http://127.0.0.1:7777
+/181210f8f9c779c26da1d9b2075bde0127302ee0e3fca38c9a83f5b1dd8e5d3b.tig
+% echo 123 | curl -X POST --data-binary @- http://127.0.0.1:7777
+/181210f8f9c779c26da1d9b2075bde0127302ee0e3fca38c9a83f5b1dd8e5d3b.tig
+% curl http://127.0.0.1:7777/181210f8f9c779c26da1d9b2075bde0127302ee0e3fca38c9a83f5b1dd8e5d3b.tig
+123
+% echo 123 | sha256sum | head -c 64 
+181210f8f9c779c26da1d9b2075bde0127302ee0e3fca38c9a83f5b1dd8e5d3b
+% printf "http://127.0.0.1:7777/`echo 123 | sha256sum | head -c 64`.tig"
+http://127.0.0.1:7777/181210f8f9c779c26da1d9b2075bde0127302ee0e3fca38c9a83f5b1dd8e5d3b.tig
+% curl -X DELETE http://127.0.0.1:7777/181210f8f9c779c26da1d9b2075bde0127302ee0e3fca38c9a83f5b1dd8e5d3b.tig
+% curl http://127.0.0.1:7777/181210f8f9c779c26da1d9b2075bde0127302ee0e3fca38c9a83f5b1dd8e5d3b.tig
+123
+% echo 245 | curl -X PUT --data-binary @- 'http://127.0.0.1:7777/181210f8f9c779c26da1d9b2075bde0127302ee0e3fca38c9a83f5b1dd8e5d3b.tig?format=http://127.0.0.1:7777*'
+% curl http://127.0.0.1:7777/181210f8f9c779c26da1d9b2075bde0127302ee0e3fca38c9a83f5b1dd8e5d3b.tig
+123
+```
 
-# Errors, formatting, and random content
-curl 'http://127.0.0.1:7777/randomfileunauthorized'
-uuidgen | sha256sum | head -c 64 | curl --data-binary @- -X PUT 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
-curl 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
+### Errors, formatting, and random content
 
-# Commit the current directory
+```
+% curl 'http://127.0.0.1:7777/randomfileunauthorized'
+% echo 123 | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
+http://127.0.0.1:7777/181210f8f9c779c26da1d9b2075bde0127302ee0e3fca38c9a83f5b1dd8e5d3b.tig
+% uuidgen | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
+http://127.0.0.1:7777/a878438bf5b7e257cbd3bca5c5f1c1cbac95b8e98f2993764c9c43a87fe3bb69.tig
+% uuidgen | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
+http://127.0.0.1:7777/ff7a1618e595344513870ffac1c11ff92a4902fe47ef9947f93301c73a03183f.tig
+```
+
+### Commit the current directory into a store
+
+```
 tar --exclude .git -c . | curl --data-binary @- -X PUT 'http://127.0.0.1:7777'
 zip -r -x '.*' - . | curl --data-binary @- -X POST 'http://127.0.0.1:7777'
+% tar --exclude-from=.gitignore -czv . | curl --data-binary @- -X PUT 'http://127.0.0.1:7777'
+a .
+a ./documentation
+a ./go.mod
+a ./LICENSE
+a ./.do
+a ./Dockerfile
+a ./readme.md
+a ./.gitignore
+a ./.gitlab-ci.yml
+a ./main.go
+a ./.do/deploy.template.yaml
+a ./documentation/tig.yaml
+a ./documentation/logo.png
+a ./documentation/tig.sh
+a ./documentation/logo.jpeg
+a ./documentation/commit.sh
+/10f21af8baa6980bcd0e26ac91822c6a8b9face9ce568aacbed422b36a08e54e.tig
+% curl http://127.0.0.1:7777/10f21af8baa6980bcd0e26ac91822c6a8b9face9ce568aacbed422b36a08e54e.tig | tar -t
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0./
+./documentation/
+./go.mod
+./LICENSE
+./.do/
+./Dockerfile
+./readme.md
+./.gitignore
+./.gitlab-ci.yml
+./main.go
+./.do/deploy.template.yaml
+./documentation/tig.yaml
+./documentation/logo.png
+./documentation/tig.sh
+./documentation/logo.jpeg
+./documentation/commit.sh
+100  420k    0  420k    0     0  20.4M      0 --:--:-- --:--:-- --:--:-- 21.5M
+```
 
-# Do a full backup of the remote repository locally.
-# This is possible, but discouraged due to security limitations.
+### Do a full backup of the remote repository locally. This is possible, but discouraged due to security limitations.
+
+```
 echo abc >/tmp/apikey
 curl -s 'http://127.0.0.1:7777?apikey=abc' | xargs -I {} curl -s 127.0.0.1:7777{} --output .{}
 ```
@@ -169,20 +231,27 @@ This are the possibilities of using tig as a key value store.
 - If a data file has been stored by its hash, you cannot overwrite anymore as a key value pair.
 - The key hash returned on success can be used to update the key value pair many times.
 - The key hash will never change.
+- Keep the value size below the block size of the file system.
+- Many operating system and kernel specific synchronization issues can be avoided with small values. 
 
 Example
 
 ```
-% echo key | curl -X PUT --data-binary @- 'http://127.0.0.1:7777?format=http://127.0.0.1:7777*'
-http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig
-% echo abc | curl -X PUT --data-binary @- 'http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig?format=http://127.0.0.1:7777*'
-http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig
-% curl http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig
-abc
-% echo def | curl -X PUT --data-binary @- 'http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig?format=http://127.0.0.1:7777*'
-http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig
-% curl curl http://127.0.0.1:7777/a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975.tig
-def
+% uuidgen | sha256sum 
+e410f72ef5d487f68543eb898ac2e9d4ddfed0b824f28f481a63ea1dca8a383a  -
+% echo 123 | curl -X PUT --data-binary @- 'http://127.0.0.1:7777/e410f72ef5d487f68543eb898ac2e9d4ddfed0b824f28f481a63ea1dca8a383a.tig?format=http://127.0.0.1:7777*'
+http://127.0.0.1:7777/e410f72ef5d487f68543eb898ac2e9d4ddfed0b824f28f481a63ea1dca8a383a.tig
+% curl http://127.0.0.1:7777/e410f72ef5d487f68543eb898ac2e9d4ddfed0b824f28f481a63ea1dca8a383a.tig
+123
+% echo 456 | curl -X PUT --data-binary @- 'http://127.0.0.1:7777/e410f72ef5d487f68543eb898ac2e9d4ddfed0b824f28f481a63ea1dca8a383a.tig?format=http://127.0.0.1:7777*'
+http://127.0.0.1:7777/e410f72ef5d487f68543eb898ac2e9d4ddfed0b824f28f481a63ea1dca8a383a.tig
+% curl http://127.0.0.1:7777/e410f72ef5d487f68543eb898ac2e9d4ddfed0b824f28f481a63ea1dca8a383a.tig
+456
+% curl -X DELETE http://127.0.0.1:7777/e410f72ef5d487f68543eb898ac2e9d4ddfed0b824f28f481a63ea1dca8a383a.tig
+/e410f72ef5d487f68543eb898ac2e9d4ddfed0b824f28f481a63ea1dca8a383a.tig
+% curl http://127.0.0.1:7777/e410f72ef5d487f68543eb898ac2e9d4ddfed0b824f28f481a63ea1dca8a383a.tig
+% curl -X DELETE http://127.0.0.1:7777/e410f72ef5d487f68543eb898ac2e9d4ddfed0b824f28f481a63ea1dca8a383a.tig
+% curl http://127.0.0.1:7777/e410f72ef5d487f68543eb898ac2e9d4ddfed0b824f28f481a63ea1dca8a383a.tig
 ```
 
 ## Bursts

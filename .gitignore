@@ -5,3 +5,4 @@ documentation/private.key
 documentation/tig.log
 implementation/
 .implementation/
+.git/
