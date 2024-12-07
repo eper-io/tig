@@ -5,6 +5,17 @@
 Tig is a simple in-memory storage utility for code, data, and vectors.
 It started as a git alternative for your codebase or data, but it grew in feature set.
 
+It is targeted for the following use cases.
+- High reliability infrastructure like pipelines, industrial applications
+- Low cost, low maintenance infrastructure
+- Frequently audited security infrastructure
+- Embedded logging, blackboxes
+- Security logging, in-house backups
+- In-memory low latency databases
+- Data streaming, delayed streaming to the cloud
+- Temporary Kubernetes storage layer
+- A defense in depth layer next to Redis, Memcached, Zookeeper
+
 The design considerations were the following.
 
 - AI generates more code than people.
