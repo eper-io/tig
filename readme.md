@@ -214,6 +214,12 @@ echo abc >/tmp/apikey
 curl -s 'http://127.0.0.1:7777?apikey=abc' | xargs -I {} curl -s 127.0.0.1:7777{} --output .{}
 ```
 
+### A better approach is to hide the latest snapshot behind a secret key on the server.
+
+```
+while true; do sleep 60; tar -czv './data' | curl -X PUT http://127.0.0.1:7777/5d26733ace0280e46ee1f8dbf3bf40f9144668a4ef616e608970c968db418667.tig; done
+```
+
 The main design decision is to let the client deal with ordering and tagging.
 This makes both the client and server side simple. The protocol is easy to audit.
 Each repository can contain files from multiple projects.
@@ -226,7 +232,7 @@ You primarily address blocks by the hash of the value. We ensure that once a blo
 
 Using the system as a traditional key value store is a minor feature. The reason is that hashes ensure that the data is cryptographically secure. Once we store by the hash of a key instead of the hash of the value, the value can change.
 
-This are the possibilities of using tig as a key value store.
+These are the possibilities of using tig as a key value store.
 
 - Use a burst of hashed segments of large files or database snapshots with hashes as pointers.
 - Change just the index nodes on updates.
