@@ -579,6 +579,28 @@ spec:
               number: 443
 ```
 
+## Regulatory
+
+Regulatory questions may arise, if the cluster does not have an apikey set.
+It can be treated as a router in this case. The delayed delete time can be lower.
+
+We suggest the following approach to law enforcement and network security officers.
+Lower delayed deletion period forces an attacker to use a keep alive logic.
+They will need to scan or move the data regularly.
+This generates network traffic and malicious or illegal packets can be scanned with the regular monitoring toolset outside in the network.
+
+The regular corporate wide certificate authority method allow internal packet scanning.
+
+We advise against changing the operating system environment to check the packets in place.
+Do not open any backdoors into your storage environment as it may allow hackers to plant ransomware.
+Network scanning allows quarantine and a reliable operation without backdoors exploited by outsiders.
+
+Certain jurisdictions may fall outside the USA cryptography regulations allowing less secure encryption only.
+
+Please follow up with your local legal professional.
+
+Sincelery, The Schmied Enterprises Security Team, California, USA
+
 ## TODO
 
 - tig was actually a quick idea. It is not really a `git` clone anymore. We could rename this to `storage` or even better `router` that reflects the behavior. It is a timed router or RAM cache.
