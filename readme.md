@@ -16,6 +16,19 @@ It is targeted for the following use cases.
 - Temporary Kubernetes storage layer
 - A defense in depth layer next to Redis, Memcached, Zookeeper
 
+The main phylosophy is memory management and garbage collection
+- Traditional Unix & Windows required manual malloc and free
+- COM, Rust methods relied on complex reference counting
+- Java, .NET & Go use a randomized delayed garbage collection
+- We use a better approach with reliable timed deletion
+- We do not need reference counting as a result but keep alive calls
+- We require the owner to periodically read or write the block
+- This allows the owner to use the regular pointer tree to scan the structures
+- This approach works in varius embedded and datacenter environments
+- It is reliable and predictable, leaks can be found in place
+- Issues can be identified by the code owner debugging their code
+- There is no duplicated pointer and reference counting logic
+
 The design considerations were the following.
 
 - AI generates more code than people.
