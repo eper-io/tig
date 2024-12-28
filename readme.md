@@ -26,8 +26,8 @@ The main philosophy is memory management and garbage collection
 - We require the owner to periodically read or write the block
 - This allows the owner to use the regular pointer tree to scan the structures
 - Blocks used rarely can be identified and offloaded to cheaper storage
-- This approach works in varius embedded and datacenter environments
-- It is reliable and predictable, leaks can be found with the scan
+- This approach works in both embedded and datacenter environments
+- It is reliable and predictable, leaks can be found with each scan
 - Issues can be identified by the owner debugging their code
 - There are no pointer and reference counting logic duplications
 
@@ -584,24 +584,25 @@ spec:
 ## Regulatory
 
 Regulatory questions may arise, if the cluster does not have an apikey set.
-It can be treated as a router in this case. The delayed delete time can be lower.
+The system can be treated as a router in this case.
+The deletion delay can be lowered.
 
 We suggest the following approach to law enforcement and network security officers.
-Lower delayed deletion period forces an attacker to use a keep alive logic.
+A smaller period for delayed deletion forces an attacker to use a keep alive logic.
 They will need to scan or move the data regularly.
-This generates network traffic and malicious or illegal packets can be scanned with the regular monitoring toolset outside in the network.
+This generates network traffic.
+Malicious or illegal packets can be scanned with the regular monitoring toolset.
+This keeps monitoring outside in the network.
 
 The regular corporate wide certificate authority method allow internal packet scanning.
 
 We advise against changing the operating system environment to check the packets in place.
 Do not open any backdoors into your storage environment as it may allow hackers to plant ransomware.
+Any issues may question the data integrity during a litigation.
+
 Network scanning allows quarantine and a reliable operation without backdoors exploited by outsiders.
 
-Certain jurisdictions may fall outside the USA cryptography regulations allowing less secure encryption only.
-
-Please follow up with your local legal professional.
-
-Sincelery, The Schmied Enterprises Security Team, California, USA
+Certain jurisdictions may fall outside the USA cryptography regulations allowing less secure encryption only. Please follow up with your local legal professional.
 
 ## TODO
 
