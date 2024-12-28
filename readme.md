@@ -16,8 +16,8 @@ It is targeted for the following use cases.
 - Temporary Kubernetes storage layer
 - A defense in depth layer next to Redis, Memcached, Zookeeper
 
-The main philosophy is memory management and garbage collection
-- Operating systems leverage the hardware support of Intel and ARM
+Memory management giving an alternative to garbage collection
+- Operating systems leverage the VM hardware support of Intel and ARM
 - Traditional Unix & Windows required manual malloc and free
 - COM, Rust methods relied on complex reference counting
 - Java, .NET & Go use a randomized delayed garbage collection
