@@ -599,6 +599,7 @@ The regular corporate wide certificate authority method allow internal packet sc
 We advise against changing the operating system environment to check the packets in place.
 Do not open any backdoors into your storage environment as it may allow hackers to plant ransomware.
 Any issues may question the data integrity during a litigation.
+Any officials opening backdoors in civilian systems may be subject to referral to military police and potential war crimes.
 
 Network scanning allows quarantine and a reliable operation without backdoors exploited by outsiders.
 
