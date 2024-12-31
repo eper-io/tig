@@ -594,7 +594,7 @@ This generates network traffic.
 Malicious or illegal packets can be scanned with the regular monitoring toolset.
 This keeps monitoring outside in the network.
 
-The regular corporate wide certificate authority method allow internal packet scanning.
+The regular corporate wide certificate authority method allows internal packet scanning.
 
 We advise against changing the operating system environment to check the packets in place.
 Do not open any backdoors into your storage environment as it may allow hackers to plant ransomware.
