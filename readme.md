@@ -366,6 +366,20 @@ curl 'http://127.0.0.1:7777/abb240c53a62c037d5997d3e0db5aa9d30a6e2264b50f32bb01c
 This is a read-only block.
 ```
 
+## Explanation for CUDA professionals
+
+Our solution interestingly ended up with the same patterns as CUDA.
+
+In CUDA, a constant is a variable stored in constant memory, accessible by all threads but with limited size (64KB per multiprocessor).  Access is faster than global memory but slower than registers or shared memory.  A texture, on the other hand, is stored in texture memory, optimized for spatial locality. Access patterns significantly impact performance; textures excel with coherent reads, while constants are best for small, frequently accessed data that's the same for all threads.
+
+Our solution allows you to store read-only hash indexed blocks easily whether you are in a browser, Win32 process, Unix process, Apple Metal, or a Docker core running some CUDA kernels. This is what happens, when you push a block. It can propagate easily knowing that it will not change.
+
+If you need larger read-only blocks, you can use the burst functionality.
+
+When you need to read-write data, then you can write key value pairs with snapshots in them. These can be some small data or pointers to other blocks for database logic or graphics frames.
+
+Read-only hashed storage is ideal for artificial intelligence models, where reliability and security requires stability and complexity prevents scanning the weights all the time.
+
 ## Storage directory suggestions:
 
 `/data` is the default location. It must exist, otherwise we fall back to `/tmp` 
