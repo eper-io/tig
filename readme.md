@@ -318,13 +318,52 @@ Setting a variable only, if it was not set is good enough for synchronization mo
 The following call will only return the path, if we successfully set the specified file used as an exclusive slot. It will return empty, if it is used. We should retry or choose another key.
 
 ```
-echo 123 | curl -X 'PUT' --data-binary @- 'http://127.0.0.1/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig?setifnot=1'
+echo 123 | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig?setifnot=1'
 ```
 
 The following call will append to the file using file system level synchronization just like `>>log.txt`. This helps with logs and traces. Use a random key path for proper behavior.
 
 ```
-echo We added one more file. | curl -X 'PUT' --data-binary @- 'http://127.0.0.1/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig?append=1'
+echo We added one more file. | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig?append=1'
+```
+
+## Authorization
+
+Oftentimes data needs to be provided as a read-only block for some, and read-write block for other users.
+
+Here is an example implementation. We use a burst block that can be written pointed to a block identified by its hash. These are by definition read-only. Readers only have access to the readable hash, not the writable one.
+
+```
+echo This is a read-only block. | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777'
+/abb240c53a62c037d5997d3e0db5aa9d30a6e2264b50f32bb01c253b27523948.tig
+printf /abb240c53a62c037d5997d3e0db5aa9d30a6e2264b50f32bb01c253b27523948.tig | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/971dc2a3b9c2774f7b6d4fbb72984bd1407ca6cc2e9e1b7c581f6aaf4199918c.tig'
+/971dc2a3b9c2774f7b6d4fbb72984bd1407ca6cc2e9e1b7c581f6aaf4199918c.tig
+curl 'http://127.0.0.1:7777/971dc2a3b9c2774f7b6d4fbb72984bd1407ca6cc2e9e1b7c581f6aaf4199918c.tig'
+/abb240c53a62c037d5997d3e0db5aa9d30a6e2264b50f32bb01c253b27523948.tig
+curl 'http://127.0.0.1:7777/971dc2a3b9c2774f7b6d4fbb72984bd1407ca6cc2e9e1b7c581f6aaf4199918c.tig?burst=1'
+This is a read-only block.
+```
+
+Let's modify the mutable-read write block using bursts.
+
+```
+echo This is a second read-only block. | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777'
+/29fed4c1dcde487e1216f525f4faf6e5c9d03fb4ae74b6f664684df5e228af3a.tig
+printf /29fed4c1dcde487e1216f525f4faf6e5c9d03fb4ae74b6f664684df5e228af3a.tig | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/971dc2a3b9c2774f7b6d4fbb72984bd1407ca6cc2e9e1b7c581f6aaf4199918c.tig'
+/971dc2a3b9c2774f7b6d4fbb72984bd1407ca6cc2e9e1b7c581f6aaf4199918c.tig
+curl 'http://127.0.0.1:7777/971dc2a3b9c2774f7b6d4fbb72984bd1407ca6cc2e9e1b7c581f6aaf4199918c.tig?burst=1'
+This is a second read-only block.
+```
+
+Verify and observe that the read-only link cannot be changed or deleted.
+
+```
+echo This is a third read-only block. | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/abb240c53a62c037d5997d3e0db5aa9d30a6e2264b50f32bb01c253b27523948.tig'
+curl 'http://127.0.0.1:7777/abb240c53a62c037d5997d3e0db5aa9d30a6e2264b50f32bb01c253b27523948.tig'
+This is a read-only block.
+curl -X 'DELETE' 'http://127.0.0.1:7777/abb240c53a62c037d5997d3e0db5aa9d30a6e2264b50f32bb01c253b27523948.tig'
+curl 'http://127.0.0.1:7777/abb240c53a62c037d5997d3e0db5aa9d30a6e2264b50f32bb01c253b27523948.tig'
+This is a read-only block.
 ```
 
 ## Storage directory suggestions:
