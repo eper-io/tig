@@ -109,6 +109,7 @@ There are some ways developers can extend it to be powerful.
 
 - Backup tools can directly work with the uploaded data easily having it in the file system.
 - The client can address the data file any time with its SHA256 hash.
+- The filtered SHA256 hashes may be used as mining data for some crypto currencies generating money.
 - The client can XOR split the stream to two different cloud providers lowering privacy risks.
 - The client can do striping to two or more different datacenters doubling bandwidth.
 - File cleanup delay can be adjusted to act like a cache or the legal backup.
