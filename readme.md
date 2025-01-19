@@ -16,7 +16,6 @@ It is targeted for the following use cases.
 - Temporary Kubernetes storage layer
 - A defense in depth layer next to Redis, Memcached, Zookeeper
 
-
 Memory management giving an alternative to garbage collection
 - Operating systems leverage the VM hardware support of Intel and ARM
 - Traditional Unix & Windows required manual malloc and free
