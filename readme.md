@@ -9,7 +9,7 @@ It is targeted for the following use cases.
 - High reliability infrastructure like pipelines, industrial applications
 - Low cost, low maintenance infrastructure
 - Frequently audited security infrastructure
-- Embedded logging, blackboxes
+- Embedded logging, black boxes
 - Security logging, in-house backups
 - In-memory low latency databases
 - Data streaming, delayed streaming to the cloud
@@ -26,7 +26,7 @@ Memory management giving an alternative to garbage collection
 - We require the owner to periodically read or write the block
 - This allows the owner to use the regular pointer tree to scan the structures
 - Blocks used rarely can be identified and offloaded to cheaper storage
-- This approach works in both embedded and datacenter environments
+- This approach works in both embedded and data center environments
 - It is reliable and predictable, leaks can be found with each scan
 - Issues can be identified by the owner debugging their code
 - There are no pointer and reference counting logic duplications
@@ -108,9 +108,9 @@ There are some ways developers can extend it to be powerful.
 
 - Backup tools can directly work with the uploaded data easily having it in the file system.
 - The client can address the data file any time with its SHA256 hash.
-- The filtered SHA256 hashes may be used as mining data for some crypto currencies generating money.
+- The filtered SHA256 hashes may be used as mining data for some crypto currencies generating revenue.
 - The client can XOR split the stream to two different cloud providers lowering privacy risks.
-- The client can do striping to two or more different datacenters doubling bandwidth.
+- The client can do striping to two or more different data centers doubling bandwidth.
 - File cleanup delay can be adjusted to act like a cache or the legal backup.
 - We tested 100 ms nearby and 500 ms latency to continental cloud regions.
 - File hashes act like page and segment addresses of Intel and AMD process pages.
@@ -126,7 +126,7 @@ There are some ways developers can extend it to be powerful.
 - If you need to scale, we suggest to use a Kubernetes ingress of 2-5 nodes.
 - You can use scaling with our Mitosis algorithm, the cloud investor's and CFO's best dream.
 - Mitosis uses containers with a lifetime.
-- Mitosis creates new containers, if the work done to liftime percentage exceeds the normal.
+- Mitosis creates new containers, if the work done to lifetime percentage exceeds the normal.
 - Handling a large bandwidth input can be solved with a distributed iSCSI Linux cluster.
 - A simple SHA256 on a file or a directory tar or zip can identify an entire version.
 - tig is ideal for data streaming workloads as a middle tier.
