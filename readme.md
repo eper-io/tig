@@ -659,6 +659,11 @@ Network scanning allows quarantine and a reliable operation without backdoors ex
 
 Certain jurisdictions may fall outside the USA cryptography regulations allowing less secure encryption only. Please follow up with your local legal professional.
 
+## Logo
+
+The logo was inspired by the tea clipper. They represented the pinnacle of sailing ship design, combining sleek hulls, tall masts, and enormous sail area to achieve remarkable speeds.
+The term "clipper" comes from the word "clip," meaning to move swiftly. These ships were designed to "clip" along at high speeds, regularly achieving 16-18 knots - extremely fast for sailing vessels of that era.
+
 ## TODO
 
 - tig was actually a quick idea. It is not really a `git` clone anymore. We could rename this to `storage` or even better `router` that reflects the behavior. It is a timed router or RAM cache.
