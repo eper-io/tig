@@ -30,6 +30,7 @@ Memory management giving an alternative to garbage collection
 - It is reliable and predictable, leaks can be found with each scan
 - Issues can be identified by the owner debugging their code
 - There are no pointer and reference counting logic duplications
+- It is easy to implement in C, Go, Java, C#.
 
 The design considerations were the following.
 
