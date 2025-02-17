@@ -15,6 +15,8 @@ It is targeted for the following use cases.
 - Data streaming, delayed streaming to the cloud
 - Temporary Kubernetes storage layer
 - A defense in depth layer next to Redis, Memcached, Zookeeper
+- Distributed process hibernation
+- Distributed process forks
 
 Memory management giving an alternative to garbage collection
 - Operating systems leverage the VM hardware support of Intel and ARM
@@ -141,6 +143,7 @@ There are some ways developers can extend it to be powerful.
 - It is super simple to use the same backend for critically distinct workloads.
 - Separate workloads can share data with the same hash to save on memory space.
 - Repetitive patterns can be compressed at the level of the burst requests.
+- Imbalances of workloads across nodes can be solved with recursive calls.
 
 ## Examples
 
