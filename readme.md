@@ -17,6 +17,7 @@ It is targeted for the following use cases.
 - A defense in depth layer next to Redis, Memcached, Zookeeper
 - Distributed process hibernation
 - Distributed process forks
+- Saving and restoring process context to the network as a hashed blob
 
 Memory management giving an alternative to garbage collection
 - Operating systems leverage the VM hardware support of Intel and ARM
@@ -638,6 +639,24 @@ spec:
             port: 
               number: 443
 ```
+
+## Distributed blockchains
+
+Oftentimes startups see the need of additional backups, especially across regions.
+
+Such storage is problematic, as the company is responsible for GDPR, healthcare, banking, or defense data. Still they need to rely on vendors for replication or backup.
+
+Tig can be the right tool by the following approach.
+1. Your banking startup just keeps a shallow database of user ids that are kept alive.
+2. Each data blob is split with an XOR to blobs A and B. Only the bitwise A XOR B operation can retrieve the data.
+3. A and B are sent to different replication storage vendors in another region.
+4. Neither vendor A nor vendor B can make the blobs useful. They are cryptographically unbreakable. The data blobs separately are useless.
+5. The original startup jurisdiction can get access to the data calling out securely to vendor A and be separately.
+6. The security level can be adjusted by adding two, hundred or a thousand storage vendors, where blobs sent to all can only retrieve the sensitive data.
+
+Such an approach reduces the risks and costs of each vendor. This is useful for entry level startups. Only government actors can claim and collect all blobs.
+
+It is a good idea that vendors use different distributions of Linux or Windows to harden the system.
 
 ## Regulatory
 
