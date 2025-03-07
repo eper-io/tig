@@ -372,6 +372,30 @@ curl 'http://127.0.0.1:7777/abb240c53a62c037d5997d3e0db5aa9d30a6e2264b50f32bb01c
 This is a read-only block.
 ```
 
+## Channels
+
+TODO To be implemented.
+
+A more sophisticated approach of synchronization are channels.
+
+Channels are a new concept in programming languages. The basic reason is that traditional microprocessor architectures were built around buses. Buses like PCI drove data through clocked parallel lines of wires. This was not easy to maintain as frequencies increased with Moore's Law.
+
+Serial channels handled the problem of very high frequencies. Many standards used the concept of sending packets together separated in time instead of space. Such standards are common such as COM, USB, USB-C, PCIE, Ethernet, Wifi, or 5G.
+
+The logical synchronization models of programming languages evolved in the old era. They favored processor instructions. Newer programming languages support channels like Golang.
+
+A channel in tig is a wrapper around a single key value pair slot. A read channel or <- supports get on a key value pair. A write channel or -> supports sending or appending data to a key value pair. Neither of them support deletion of the underlying channel. Channels do not expose the underlying key.
+
+The behavior follows assuming an owner, since tig does not have administrator or root roles. It is equal, modern, and democratic in design.
+1. The owner creates a volatile key value pair.
+2. The owner creates a write channel with the key.
+3. The owner creates a read channel with the key.
+4. The owner passes the write channel key to the public domain.
+5. Public domain browser loggers can append log data to the write channel. They cannot read back or delete.
+6. The owner passer the read channel to a data warehouse reader like Snowflake.
+7. The data warehouse can import the data, but they cannot delete or alter it.
+8. The owner periodically purges the data with write access.
+
 ## Explanation for CUDA professionals
 
 Our solution interestingly ended up with the same patterns as CUDA.
