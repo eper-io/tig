@@ -397,7 +397,7 @@ The behavior follows assuming an owner, since tig does not have administrator or
 
 Create a write-only channel that cannot be deleted, and that does not reveal the read hash.
 ```
-% printf "3DB0067D-4C1E-44F6-8003-AA14BD382CC5/c63cd29b0514d989f36eefc57955bb4473e4f4e465d23741063a620a9ca07318.tig" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig'
+% printf "Write only channel to tig /c63cd29b0514d989f36eefc57955bb4473e4f4e465d23741063a620a9ca07318.tig" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig'
 /4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig
 % % printf "wrewrew" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig?append=1'
 /4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig
@@ -411,7 +411,7 @@ wrewrewwrewrewwrewrewwrewrew
 
 Create a read-only channel that cannot be deleted, and that does not reveal the write hash. Obviously, non-volatile data can just be put without a hash.
 ```
-% printf "487D5E3A-A985-45AF-9667-0856109007F7/4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865.tig" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777'
+% printf "Read only channel to tig /4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865.tig" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777'
 /82a2355432acfba24e5bb8f8429287e379186e23b9e1226d84362d79db614a27.tig
 % printf "written" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865.tig'
 /4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865.tig

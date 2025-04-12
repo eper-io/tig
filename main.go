@@ -54,8 +54,8 @@ var addLocalhost = false
 
 var loopback = ""
 
-const WriteOnlySecret = "3DB0067D-4C1E-44F6-8003-AA14BD382CC5"
-const ReadOnlySecret = "487D5E3A-A985-45AF-9667-0856109007F7"
+const WriteOnlySecret = "Write only channel to tig "
+const ReadOnlySecret = "Read only channel to tig "
 
 var client = &http.Client{
 	Transport: &http.Transport{
