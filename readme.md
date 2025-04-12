@@ -374,27 +374,55 @@ This is a read-only block.
 
 ## Channels
 
-TODO To be implemented.
-
 A more sophisticated approach of synchronization are channels.
 
 Channels are a new concept in programming languages. The basic reason is that traditional microprocessor architectures were built around buses. Buses like PCI drove data through clocked parallel lines of wires. This was not easy to maintain as frequencies increased with Moore's Law.
 
-Serial channels handled the problem of very high frequencies. Many standards used the concept of sending packets together separated in time instead of space. Such standards are common such as COM, USB, USB-C, PCIE, Ethernet, Wifi, or 5G.
+Serial channels handled the problem of very high frequencies. Many standards used the concept of sending packets together separated in time instead of space. Such standards are common such as COM, USB, USB-C, PCIE, Ethernet, Wifi, Infiniband, or 5G.
 
-The logical synchronization models of programming languages evolved in the old era. They favored processor instructions. Newer programming languages support channels like Golang.
+The logical synchronization models of programming languages evolved in the first era. Engineers favored processor instructions. Newer programming languages support channels like Golang.
 
 A channel in tig is a wrapper around a single key value pair slot. A read channel or <- supports get on a key value pair. A write channel or -> supports sending or appending data to a key value pair. Neither of them support deletion of the underlying channel. Channels do not expose the underlying key.
 
-The behavior follows assuming an owner, since tig does not have administrator or root roles. It is equal, modern, and democratic in design.
+The behavior follows assuming an owner, since tig does not have administrator or root roles. It is decentralized, modern, and distributed in design.
 1. The owner creates a volatile key value pair.
-2. The owner creates a write channel with the key.
-3. The owner creates a read channel with the key.
+2. The owner creates a write channel with the key prefixed an uuid.
+3. The owner creates a read channel with the key prefixed an uuid.
 4. The owner passes the write channel key to the public domain.
 5. Public domain browser loggers can append log data to the write channel. They cannot read back or delete.
 6. The owner passer the read channel to a data warehouse reader like Snowflake.
 7. The data warehouse can import the data, but they cannot delete or alter it.
 8. The owner periodically purges the data with write access.
+9. The channels clean up like files, if not used for a long time.
+
+Create a write-only channel that cannot be deleted, and that does not reveal the read hash.
+```
+% printf "3DB0067D-4C1E-44F6-8003-AA14BD382CC5/c63cd29b0514d989f36eefc57955bb4473e4f4e465d23741063a620a9ca07318.tig" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig'
+/4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig
+% % printf "wrewrew" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig?append=1'
+/4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig
+% curl 'http://127.0.0.1:7777/c63cd29b0514d989f36eefc57955bb4473e4f4e465d23741063a620a9ca07318.tig'
+wrewrewwrewrewwrewrewwrewrew
+...
+% curl 'http://127.0.0.1:7777/4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig'
+% curl 'http://127.0.0.1:7777/c63cd29b0514d989f36eefc57955bb4473e4f4e465d23741063a620a9ca07318.tig'
+wrewrewwrewrewwrewrewwrewrew
+```
+
+Create a read-only channel that cannot be deleted, and that does not reveal the write hash. Obviously, non-volatile data can just be put without a hash.
+```
+% printf "487D5E3A-A985-45AF-9667-0856109007F7/4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865.tig" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777'
+/82a2355432acfba24e5bb8f8429287e379186e23b9e1226d84362d79db614a27.tig
+% printf "written" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865.tig'
+/4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865.tig
+% curl 'http://127.0.0.1:7777/4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865.tig'
+written
+% curl 'http://127.0.0.1:7777/82a2355432acfba24e5bb8f8429287e379186e23b9e1226d84362d79db614a27.tig'
+written
+% printf "written to read-only channel" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/82a2355432acfba24e5bb8f8429287e379186e23b9e1226d84362d79db614a27.tig'
+% curl 'http://127.0.0.1:7777/82a2355432acfba24e5bb8f8429287e379186e23b9e1226d84362d79db614a27.tig'
+written
+```
 
 ## Explanation for CUDA professionals
 
