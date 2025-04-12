@@ -33,18 +33,29 @@ import (
 
 var root = "/data"
 var cleanup = 10 * time.Minute
+
 const MaxFileSize = 128 * 1024 * 1024
 const MaxMemSize = 4 * MaxFileSize
+
 var cluster = "localhost"
 var ddosProtection sync.Mutex
 var instance = fmt.Sprintf("%d", time.Now().UnixNano()+rand.Int63())
+
 const routedCall = "09E3F5F0-1D87-4B54-B57D-8D046D001942"
-var endOfLife = time.Now().Add(time.Duration(10*365*24*time.Hour))
+
+var endOfLife = time.Now().Add(time.Duration(10 * 365 * 24 * time.Hour))
+
 // MaxMemSize / MaxFileSize
-var poolExternal = make(chan []byte, MaxMemSize / MaxFileSize)
+var poolExternal = make(chan []byte, MaxMemSize/MaxFileSize)
+
 // MaxMemSize / MaxFileSize to avoid deadlocks and bottlenecks
-var poolCluster = make(chan []byte, MaxMemSize / MaxFileSize)
+var poolCluster = make(chan []byte, MaxMemSize/MaxFileSize)
 var addLocalhost = false
+
+var loopback = ""
+
+const WriteOnlySecret = "3DB0067D-4C1E-44F6-8003-AA14BD382CC5"
+const ReadOnlySecret = "487D5E3A-A985-45AF-9667-0856109007F7"
 
 var client = &http.Client{
 	Transport: &http.Transport{
@@ -66,8 +77,10 @@ func main() {
 	Setup()
 	_, err = os.Stat("/etc/ssl/tig.key")
 	if err == nil {
+		loopback = "https://127.0.0.1:443"
 		err = http.ListenAndServeTLS(":443", "/etc/ssl/tig.crt", "/etc/ssl/tig.key", nil)
 	} else {
+		loopback = "http://127.0.0.1:7777"
 		_ = http.ListenAndServe(":7777", nil)
 	}
 	if err != nil {
@@ -76,11 +89,11 @@ func main() {
 }
 
 func Setup() {
-	for i := 0; i < MaxMemSize / MaxFileSize; i++ {
+	for i := 0; i < MaxMemSize/MaxFileSize; i++ {
 		poolExternal <- make([]byte, MaxFileSize)
 	}
 	if cluster != "localhost" {
-		for i := 0; i < MaxMemSize / MaxFileSize; i++ {
+		for i := 0; i < MaxMemSize/MaxFileSize; i++ {
 			poolCluster <- make([]byte, MaxFileSize)
 		}
 	}
@@ -89,7 +102,7 @@ func Setup() {
 			now := time.Now()
 			list, _ := os.ReadDir(root)
 			for _, v := range list {
-				if IsValidTigHash("/"+v.Name()) {
+				if IsValidTigHash("/" + v.Name()) {
 					filePath := path.Join(root, v.Name())
 					stat, _ := os.Stat(filePath)
 					if stat != nil {
@@ -304,6 +317,23 @@ func ReadStoreBuffer(w io.Writer, r *http.Request) int {
 		return http.StatusNotFound
 	}
 
+	if len(data) < 120 {
+		if strings.HasPrefix(string(data), WriteOnlySecret) {
+			return http.StatusForbidden
+		}
+		if strings.HasPrefix(string(data), ReadOnlySecret) {
+			secretHash := string(data)[len(ReadOnlySecret):]
+			if IsValidTigHash(secretHash) && loopback != "" {
+				response, err := http.Get(loopback + secretHash)
+				if err == nil {
+					_, err = io.Copy(w, response.Body)
+					err = response.Body.Close()
+					return http.StatusOK
+				}
+			}
+			return http.StatusForbidden
+		}
+	}
 	if r.URL.Query().Get("burst") == "1" {
 		scanner := bufio.NewScanner(bytes.NewBuffer(data))
 		for scanner.Scan() {
@@ -376,6 +406,7 @@ func DeleteVolatile(w http.ResponseWriter, r *http.Request) bool {
 	if len(r.URL.Path) <= 1 {
 		return false
 	}
+
 	// We allow deletion of key value pairs but not non-volatile hashed storage
 	shortName := r.URL.Path[1:]
 	absolutePath := path.Join(root, shortName)
@@ -386,6 +417,16 @@ func DeleteVolatile(w http.ResponseWriter, r *http.Request) bool {
 		// Disallow updating secure hashed segments already stored.
 		QuantumGradeError()
 		return false
+	}
+	if len(data) < 120 {
+		if strings.HasPrefix(string(data), ReadOnlySecret) {
+			QuantumGradeError()
+			return false
+		}
+		if strings.HasPrefix(string(data), WriteOnlySecret) {
+			QuantumGradeError()
+			return false
+		}
 	}
 	filePath := path.Join(root, r.URL.Path)
 	if os.Remove(filePath) != nil {
@@ -412,8 +453,29 @@ func WriteVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 		QuantumGradeError()
 		return
 	}
+	if len(data) < 120 {
+		if strings.HasPrefix(string(data), ReadOnlySecret) {
+			return
+		}
+		if strings.HasPrefix(string(data), WriteOnlySecret) {
+			secretHash := string(data)[len(WriteOnlySecret):]
+			if IsValidTigHash(secretHash) && loopback != "" {
+				var query = r.URL.Query().Encode()
+				if len(query) > 0 {
+					query = "?" + query
+				}
+				response, err := http.Post(loopback+secretHash+query, "text/plain", bytes.NewBuffer(body))
+				if err == nil {
+					io.WriteString(w, r.URL.Path)
+					err = response.Body.Close()
+					return
+				}
+			}
+			return
+		}
+	}
 	setIfNot := r.URL.Query().Get("setifnot") == "1"
-	flags := os.O_CREATE|os.O_WRONLY
+	flags := os.O_CREATE | os.O_WRONLY
 	if setIfNot {
 		// Key value pairs may collide. We do not use file system locks to allow pure in memory storage later
 		flags = flags | os.O_EXCL
@@ -443,7 +505,7 @@ func WriteNonVolatile(w http.ResponseWriter, r *http.Request, body []byte) {
 	}
 	shortName := fmt.Sprintf("%x.tig", sha256.Sum256(body))
 	absolutePath := path.Join(root, shortName)
-	flags := os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_EXCL
+	flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY | os.O_EXCL
 	file, err := os.OpenFile(absolutePath, flags, 0600)
 	if err == nil {
 		_, _ = io.Copy(file, bytes.NewBuffer(body))
@@ -586,7 +648,7 @@ func NoIssueCopy(i int64, err error) {
 	}
 }
 
-func Nvl(in string, nvl string) (s string){
+func Nvl(in string, nvl string) (s string) {
 	s = in
 	if s == "" {
 		s = nvl
