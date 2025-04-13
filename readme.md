@@ -399,7 +399,7 @@ Create a write-only channel that cannot be deleted, and that does not reveal the
 ```
 % printf "Write only channel to tig /c63cd29b0514d989f36eefc57955bb4473e4f4e465d23741063a620a9ca07318.tig" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig'
 /4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig
-% % printf "wrewrew" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig?append=1'
+% printf "written" | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig?append=1'
 /4d43bb66fa84f38f2dd73b6b9b39aa3820f7d9ccaeda71416fcff326a4396a30.tig
 % curl 'http://127.0.0.1:7777/c63cd29b0514d989f36eefc57955bb4473e4f4e465d23741063a620a9ca07318.tig'
 wrewrewwrewrewwrewrewwrewrew
