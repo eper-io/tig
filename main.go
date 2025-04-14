@@ -77,10 +77,8 @@ func main() {
 	Setup()
 	_, err = os.Stat("/etc/ssl/tig.key")
 	if err == nil {
-		loopback = "https://127.0.0.1:443"
 		err = http.ListenAndServeTLS(":443", "/etc/ssl/tig.crt", "/etc/ssl/tig.key", nil)
 	} else {
-		loopback = "http://127.0.0.1:7777"
 		_ = http.ListenAndServe(":7777", nil)
 	}
 	if err != nil {
