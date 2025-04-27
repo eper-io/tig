@@ -333,6 +333,20 @@ The following call will append to the file using file system level synchronizati
 echo We added one more file. | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig?append=1'
 ```
 
+The take method allows atomic gets of slots deleting the entry, if they are volatile. They are very useful for linked lists and queues together with setifnot.
+
+```
+echo 123 | curl -X 'PUT' --data-binary @- 'http://127.0.0.1:7777/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig?setifnot=1'
+curl -X 'GET' 'http://127.0.0.1:7777/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig'
+123
+curl -X 'GET' 'http://127.0.0.1:7777/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig'
+123
+curl -X 'GET' 'http://127.0.0.1:7777/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig?take=1'
+123
+curl -X 'GET' 'http://127.0.0.1:7777/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig'
+curl -X 'GET' 'http://127.0.0.1:7777/7574284e16a554088122dcd49e69f96061965d7c599f834393b563fb31854c7f.tig'
+```
+
 ## Authorization
 
 Oftentimes data needs to be provided as a read-only block for some, and read-write block for other users.

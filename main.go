@@ -197,6 +197,7 @@ func fulfillRequestLocally(w http.ResponseWriter, r *http.Request, body []byte) 
 		w.WriteHeader(http.StatusOK)
 		return
 	}
+	take := r.Method == "GET" && r.URL.Query().Get("take") == "1"
 	if r.Method == "GET" {
 		if r.URL.Path == "/" {
 			if QuantumGradeAuthenticationFailed(w, r) {
@@ -206,6 +207,9 @@ func fulfillRequestLocally(w http.ResponseWriter, r *http.Request, body []byte) 
 			return
 		} else {
 			ReadStore(w, r)
+			if take {
+				DeleteVolatile(w, r)
+			}
 		}
 	}
 }
