@@ -748,6 +748,16 @@ Network scanning allows quarantine and a reliable operation without backdoors ex
 
 Certain jurisdictions may fall outside the USA cryptography regulations allowing less secure encryption only. Please follow up with your local legal professional.
 
+## Philosophy
+
+The project borrows from two distinct patterns.
+
+Databases like MongoDB have unique characteristics. They try to make the database reflect the way data is represented in the client memory. We go even further. You can directly have a snapshot of the memory page and store and fetch from the remote database.
+
+Data access languages like SQL try to make databases accessible to a wide audience. SQL is similar to plain English, it is the most widely accepted programming language. This is not a surprise. We suggest to use data records self descriptive. The edge case is when each record is a sentence. It looks like `Employee number 10 is Jim Boomerang with social security number 395 2457 22205.` . This makes the data extremely reusable and accessible for a wide audience. This does not require any extra engineering knowledge. Auditors and accountants can read the plain data files, while artificial intelligence, search indexing, and automation can pick it up directly and cheaply.
+
+This two should make this project your best revenue generator.
+
 ## Logo
 
 The logo was inspired by the tea clipper. They represented the pinnacle of sailing ship design, combining sleek hulls, tall masts, and enormous sail area to achieve remarkable speeds.
