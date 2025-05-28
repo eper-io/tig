@@ -1,4 +1,4 @@
-![tig](./documentation/logo.jpeg)
+TIG is deprecated. Use https://gitlab.com/eper.io/JetstreamDB instead.
 
 # TIG
 
